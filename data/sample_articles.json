@@ -1,0 +1,43 @@
+[
+  {
+    "title": "示例公司发布多模态模型 Aurora 2",
+    "url": "https://example.com/official/aurora-2?utm_source=newsletter",
+    "source": "示例公司官网",
+    "published_at": "2026-07-10T02:30:00+00:00",
+    "content": "示例公司发布多模态模型 Aurora 2，支持文本和图像输入，并同步开放 API。本文仅用于离线演示，不代表真实新闻。",
+    "language": "zh",
+    "source_weight": 95,
+    "official": true
+  },
+  {
+    "title": "Aurora 2 多模态模型正式发布",
+    "url": "https://news.example.org/aurora-2",
+    "source": "示例科技媒体",
+    "published_at": "2026-07-10T03:00:00+00:00",
+    "content": "Aurora 2 正式发布，提供文本与图像能力和开发者 API。此条与官网内容重复，用于测试事件聚类。",
+    "language": "zh",
+    "source_weight": 75,
+    "official": false
+  },
+  {
+    "title": "example-ai/toolkit 发布 v1.0 开源版本",
+    "url": "https://github.com/example-ai/toolkit/releases/tag/v1.0",
+    "source": "GitHub Release",
+    "published_at": "2026-07-10T07:00:00+00:00",
+    "content": "开源 AI Agent 工具包首次发布，包含工作流编排和评测组件。本文为离线演示数据。",
+    "language": "zh",
+    "source_weight": 80,
+    "official": true
+  },
+  {
+    "title": "某地发布生成式人工智能应用管理指引",
+    "url": "https://government.example.cn/policy/ai-guidance",
+    "source": "示例政府网站",
+    "published_at": "2026-07-10T09:10:00+00:00",
+    "content": "管理指引明确生成式人工智能应用的备案、数据安全与用户权益要求。本文为离线演示数据。",
+    "language": "zh",
+    "source_weight": 98,
+    "official": true
+  }
+]
+

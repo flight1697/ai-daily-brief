@@ -1,0 +1,48 @@
+name: AI Daily Brief
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 09:00 Asia/Shanghai (UTC+8)
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Optional target date (YYYY-MM-DD)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  generate-and-send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install .
+      - name: Generate and send digest
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          DATE_ARG=""
+          if [ -n "${{ inputs.target_date }}" ]; then DATE_ARG="--date ${{ inputs.target_date }}"; fi
+          python -m ai_daily_brief $DATE_ARG --send --output data/latest.html
+      - name: Upload generated digest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-daily-brief-${{ github.run_id }}
+          path: |
+            data/latest.html
+            data/ai_daily.db
+          if-no-files-found: ignore
+          retention-days: 30
+

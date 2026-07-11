@@ -1,0 +1,93 @@
+rss:
+  - name: OpenAI News
+    url: https://openai.com/news/rss.xml
+    language: en
+    official: true
+    weight: 95
+  - name: Anthropic News
+    url: https://www.anthropic.com/news/rss.xml
+    language: en
+    official: true
+    weight: 95
+    enabled: false # Endpoint currently returns HTML; re-enable after adding a webpage adapter.
+  - name: Google AI
+    url: https://blog.google/technology/ai/rss/
+    language: en
+    official: true
+    weight: 92
+  - name: Google DeepMind
+    url: https://deepmind.google/blog/rss.xml
+    language: en
+    official: true
+    weight: 92
+  - name: Microsoft Research
+    url: https://www.microsoft.com/en-us/research/feed/
+    language: en
+    official: true
+    weight: 88
+  - name: NVIDIA Blog
+    url: https://blogs.nvidia.com/feed/
+    language: en
+    official: true
+    weight: 88
+  - name: Hugging Face Blog
+    url: https://huggingface.co/blog/feed.xml
+    language: en
+    official: true
+    weight: 88
+  - name: Meta AI
+    url: https://ai.meta.com/blog/rss/
+    language: en
+    official: true
+    weight: 90
+    enabled: false # Upstream feed is currently malformed.
+  - name: TechCrunch AI
+    url: https://techcrunch.com/category/artificial-intelligence/feed/
+    language: en
+    official: false
+    weight: 78
+  - name: MIT Technology Review AI
+    url: https://www.technologyreview.com/topic/artificial-intelligence/feed
+    language: en
+    official: false
+    weight: 85
+  - name: VentureBeat AI
+    url: https://venturebeat.com/category/ai/feed/
+    language: en
+    official: false
+    weight: 72
+  - name: Hacker News
+    url: https://hnrss.org/newest?q=AI+OR+LLM
+    language: en
+    official: false
+    weight: 55
+  - name: 机器之心
+    url: https://www.jiqizhixin.com/rss
+    language: zh
+    official: false
+    weight: 72
+    enabled: false # Upstream XML currently has mismatched tags.
+  - name: arXiv AI
+    url: https://export.arxiv.org/api/query?search_query=cat%3Acs.AI&start=0&max_results=30&sortBy=submittedDate&sortOrder=descending
+    language: en
+    official: true
+    weight: 82
+  - name: arXiv CL
+    url: https://export.arxiv.org/api/query?search_query=cat%3Acs.CL&start=0&max_results=30&sortBy=submittedDate&sortOrder=descending
+    language: en
+    official: true
+    weight: 82
+
+github:
+  search_query: "topic:artificial-intelligence stars:>500"
+  watch_releases:
+    - huggingface/transformers
+    - ollama/ollama
+    - vllm-project/vllm
+    - langchain-ai/langchain
+    - ggml-org/llama.cpp
+    - open-webui/open-webui
+
+deduplication:
+  title_threshold: 0.88
+  content_threshold: 0.72
