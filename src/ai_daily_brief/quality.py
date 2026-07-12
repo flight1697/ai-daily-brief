@@ -35,11 +35,16 @@ def assess_quality(articles: list[Article], min_items: int = 3, min_sources: int
                    min_categories: int = 2,
                    min_summary_completeness: float = 0.8) -> QualityAssessment:
     item_count = len(articles)
-    source_count = len({article.source for article in articles})
+    all_sources = {
+        source
+        for article in articles
+        for source in [article.source, *(link.name for link in article.related_sources)]
+    }
+    source_count = len(all_sources)
     category_count = len({article.category for article in articles})
     official_count = sum(article.official for article in articles)
     multi_source_count = sum(
-        article.verification == "多源报道" or bool(article.related_sources)
+        len({article.source, *(link.name for link in article.related_sources)}) >= 2
         for article in articles
     )
     completed_summaries = sum(

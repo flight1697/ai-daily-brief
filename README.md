@@ -30,9 +30,10 @@ Jinja2 HTML → Resend → 运行数据写入SQLite
 
 ## 功能
 
-- 15 个预配 RSS/arXiv 信源（当前 12 个默认启用）及 6 个 GitHub Release 监控仓库
+- 18 个预配 RSS/arXiv 信源（当前 15 个默认启用）及 6 个 GitHub Release 监控仓库
 - 严格按 `Asia/Shanghai` 的前一自然日筛选
 - URL、标题、正文相似度三层事件去重
+- 版本号冲突保护和同源严格阈值，避免把不同软件版本误合并为同一事件
 - 模型产品、商业、融资、开源、研究、监管、应用 7 类分类
 - 信源、影响、新颖性、交叉来源、相关性五维评分
 - DeepSeek `deepseek-chat` 批量生成中文摘要和影响说明

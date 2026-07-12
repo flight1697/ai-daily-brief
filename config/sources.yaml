@@ -59,6 +59,21 @@ rss:
     language: en
     official: false
     weight: 72
+  - name: The Verge AI
+    url: https://www.theverge.com/rss/ai-artificial-intelligence/index.xml
+    language: en
+    official: false
+    weight: 82
+  - name: WIRED AI
+    url: https://www.wired.com/feed/tag/ai/latest/rss
+    language: en
+    official: false
+    weight: 82
+  - name: Ars Technica AI
+    url: https://feeds.arstechnica.com/arstechnica/technology-lab
+    language: en
+    official: false
+    weight: 80
   - name: Hacker News
     url: https://hnrss.org/newest?q=AI+OR+LLM
     language: en

@@ -23,7 +23,7 @@ def test_diverse_digest_passes_quality_gate() -> None:
     ])
     assert assessment.passed is True
     assert assessment.item_count == 3
-    assert assessment.source_count == 3
+    assert assessment.source_count == 4
     assert assessment.category_count == 3
     assert assessment.summary_completeness == 1
 
@@ -44,3 +44,27 @@ def test_weak_verification_produces_warning_without_blocking() -> None:
     assert any("官方来源比例" in warning for warning in assessment.warnings)
     assert any("交叉核验比例" in warning for warning in assessment.warnings)
     assert any("平均重要性评分" in warning for warning in assessment.warnings)
+
+
+def test_related_item_from_the_same_source_is_not_cross_verification() -> None:
+    first = article("A", "模型与产品发布")
+    first.related_sources = [SourceLink("A", "https://example.com/a-duplicate")]
+    assessment = assess_quality([
+        first,
+        article("B", "企业与商业动态", official=True),
+        article("C", "开源项目", official=True),
+    ])
+    assert assessment.multi_source_count == 0
+    assert assessment.multi_source_ratio == 0
+
+
+def test_related_item_from_an_independent_source_counts_as_verification() -> None:
+    first = article("A", "模型与产品发布")
+    first.related_sources = [SourceLink("Independent", "https://independent.example/story")]
+    assessment = assess_quality([
+        first,
+        article("B", "企业与商业动态", official=True),
+        article("C", "开源项目", official=True),
+    ])
+    assert assessment.multi_source_count == 1
+    assert assessment.source_count == 4
