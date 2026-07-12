@@ -62,7 +62,7 @@ python -m ai_daily_brief --sample --date 2026-07-10 --output data/sample.html
 
 ## 工程质量门禁
 
-`.github/workflows/ci.yml`会在`main`分支推送和Pull Request上使用Python 3.11、3.12、3.13运行完整测试，并要求整体分支覆盖率不低于65%。通过测试后继续构建源码包和wheel、安装wheel验证全部命令入口，并对实际安装的运行时依赖执行漏洞扫描。
+`.github/workflows/ci.yml`会在`main`分支推送和Pull Request上使用Python 3.11、3.12、3.13运行完整测试，并要求整体分支覆盖率不低于70%。通过测试后继续构建源码包和wheel、安装wheel验证全部命令入口，并对实际安装的运行时依赖执行漏洞扫描。
 
 Dependabot每周检查Python依赖和GitHub Actions版本，更新通过Pull Request进入同一套CI，不直接改动生产分支。
 
@@ -123,7 +123,7 @@ pytest -q
 python -m ai_daily_brief.metrics_report --database data/ai_daily.db
 ```
 
-如需跨GitHub Actions任务长期累计，在Supabase SQL Editor执行 `supabase/migrations/001_metrics.sql`，然后配置仓库Secrets `SUPABASE_URL`和`SUPABASE_SERVICE_ROLE_KEY`。远程指标写入失败只记录日志，不会阻断日报发送。
+如需跨GitHub Actions任务长期累计，在Supabase SQL Editor按编号执行`supabase/migrations/001_metrics.sql`和`002_run_quality.sql`，然后配置仓库Secrets `SUPABASE_URL`和`SUPABASE_SERVICE_ROLE_KEY`。远程指标写入失败只记录日志，不会阻断日报发送。
 
 迁移同时创建`deliveries`表。`supabase/functions/resend-webhook`提供Resend Webhook接收器，验证Svix签名并记录`sent`、`delivered`、`bounced`和`complained`状态。部署步骤见该目录README。
 
@@ -133,7 +133,7 @@ GitHub Actions 的数据库文件只作为当次 artifact 保存 30 天，不是
 
 `.github/workflows/health.yml`每天北京时间10:00独立检查昨日运行，确认Supabase中存在成功发送记录且Resend Webhook最终状态为`delivered`。如果日报缺失、邮件未确认送达、退信或投诉，系统会向`EMAIL_TO`发送一封告警邮件，并把健康检查任务标记为失败，便于在GitHub Actions中追踪。
 
-告警使用“日期+健康检查”作为幂等键，同一天重复检查不会重复发送相同告警。信息源局部失败和最终新闻数为0会附在诊断信息中。也可以手动执行：
+告警使用“日期+健康检查”作为幂等键，同一天重复检查不会重复发送相同告警。信息源局部失败和最终新闻数为0会附在诊断信息中；连续3天交叉核验比例低于20%或连续3天没有官方来源时，也会触发质量趋势告警。也可以手动执行：
 
 ```powershell
 python -m ai_daily_brief.health --date 2026-07-11
@@ -142,7 +142,7 @@ python -m ai_daily_brief.health --date 2026-07-11 --alert
 
 ## 每周运营周报
 
-`.github/workflows/weekly.yml`在每周一北京时间10:30汇总此前7天的Supabase指标，自动计算实际运行天数、日报投递成功率、日均采集与输出数量、LLM摘要使用率、信息源成功率和高频故障信源。定时任务会把HTML周报发送到`EMAIL_TO`，并将同一份HTML作为GitHub Actions artifact保留90天。
+`.github/workflows/weekly.yml`在每周一北京时间10:30汇总此前7天的Supabase指标，自动计算实际运行天数、日报投递成功率、日均采集与输出数量、LLM摘要使用率、信息源成功率、高频故障信源，以及质量门禁通过率、官方来源比例、交叉核验比例、摘要完整率和平均质量分。定时任务会把HTML周报发送到`EMAIL_TO`，并将同一份HTML作为GitHub Actions artifact保留90天。
 
 成功率以应运行的7天为分母，因此漏跑也会反映在指标里；同一天发生重试时，内容指标优先采用最后一次成功发送，否则采用最后一次尝试，`attempts`仍保留全部尝试次数。手动生成默认不发邮件：
 
@@ -153,7 +153,7 @@ python -m ai_daily_brief.weekly_report --end-date 2026-07-12 --send
 
 ## 公开运行仪表盘
 
-`.github/workflows/pages.yml`每天北京时间11:00从Supabase读取最近30天指标，生成纯静态GitHub Pages仪表盘。页面展示运行覆盖率、确认送达率、日均处理量、信源健康度和每日处理漏斗，不包含邮箱、邮件主题、消息ID、新闻正文、错误详情或任何密钥。
+`.github/workflows/pages.yml`每天北京时间11:00从Supabase读取最近30天指标，生成纯静态GitHub Pages仪表盘。页面展示运行覆盖率、确认送达率、日均处理量、信源健康度、每日处理漏斗和匿名内容质量趋势，不包含邮箱、邮件主题、消息ID、新闻正文、错误详情或任何密钥。
 
 在线地址：[https://flight1697.github.io/ai-daily-brief/](https://flight1697.github.io/ai-daily-brief/)
 
@@ -165,7 +165,7 @@ python -m ai_daily_brief.dashboard --days 30 --output public/index.html
 
 ## 质量边界
 
-每次运行会生成`data/quality.json`，记录入选数量、独立来源数、分类覆盖、官方来源比例、交叉核验比例、摘要完整率和平均重要性评分。正式发送要求至少3条内容、2个独立来源、2个分类且摘要完整率不低于80%；不满足时邮件状态记为`blocked:quality`，不发送低质量日报，并由10:00健康检查触发告警。官方来源或交叉核验比例偏低只产生警告，避免因新闻结构差异过度拦截。
+每次运行会生成`data/quality.json`，并把相同的匿名指标长期写入SQLite和Supabase的`run_quality`表，记录入选数量、独立来源数、分类覆盖、官方来源比例、交叉核验比例、摘要完整率和平均重要性评分。正式发送要求至少3条内容、2个独立来源、2个分类且摘要完整率不低于80%；不满足时邮件状态记为`blocked:quality`，不发送低质量日报，并由10:00健康检查触发告警。官方来源或交叉核验比例偏低只产生警告，避免因新闻结构差异过度拦截。
 
 - “官方来源”表示链接来自配置为官方的站点或官方 GitHub 仓库，不代表系统对全部主张做了独立审计。
 - “多源交叉核验”表示系统将相似报道聚为同一事件；仍应人工检查融资金额、模型指标和政策条款。

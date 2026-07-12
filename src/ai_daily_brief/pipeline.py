@@ -21,6 +21,17 @@ from .quality import DigestQualityError, assess_quality
 logger = logging.getLogger(__name__)
 
 
+def _persist_run(database: Database, stats: RunStats, source_runs: list[SourceRunStats],
+                 quality: dict, settings: Settings) -> None:
+    database.save_run(stats, source_runs)
+    database.save_quality(stats.run_id, stats.target_date, quality)
+    database.close()
+    persist_remote_metrics(
+        settings.supabase_url, settings.supabase_service_role_key,
+        stats, source_runs, settings.email_to, quality,
+    )
+
+
 def _timed_collect_rss(source: dict) -> tuple[list[Article], float]:
     started = time.monotonic()
     articles = collect_rss(source)
@@ -172,10 +183,7 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
             stats.email_status = "blocked:quality"
             stats.duration_seconds = round(time.monotonic() - started, 2)
             stats.finished_at = datetime.now(timezone.utc).isoformat()
-            database.save_run(stats, source_runs)
-            database.close()
-            persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
-                                   stats, source_runs, settings.email_to)
+            _persist_run(database, stats, source_runs, quality.to_dict(), settings)
             raise DigestQualityError(quality)
         try:
             message_id = send_email(settings.resend_api_key, settings.email_from, settings.email_to,
@@ -185,17 +193,11 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
             stats.email_status = "failed"
             stats.duration_seconds = round(time.monotonic() - started, 2)
             stats.finished_at = datetime.now(timezone.utc).isoformat()
-            database.save_run(stats, source_runs)
-            database.close()
-            persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
-                                   stats, source_runs, settings.email_to)
+            _persist_run(database, stats, source_runs, quality.to_dict(), settings)
             raise
     else:
         stats.email_status = "dry_run"
     stats.duration_seconds = round(time.monotonic() - started, 2)
     stats.finished_at = datetime.now(timezone.utc).isoformat()
-    database.save_run(stats, source_runs)
-    database.close()
-    persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
-                           stats, source_runs, settings.email_to)
+    _persist_run(database, stats, source_runs, quality.to_dict(), settings)
     return selected, stats, html

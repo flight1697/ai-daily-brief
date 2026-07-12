@@ -36,6 +36,11 @@ CREATE TABLE IF NOT EXISTS source_runs (
   duration_seconds REAL NOT NULL,
   PRIMARY KEY (run_id, source_name)
 );
+CREATE TABLE IF NOT EXISTS run_quality (
+  run_id TEXT PRIMARY KEY,
+  target_date TEXT NOT NULL,
+  assessment TEXT NOT NULL
+);
 """
 
 
@@ -80,6 +85,13 @@ class Database:
                   item.collected_count, item.status, item.error_message, item.duration_seconds)
                  for item in source_runs],
             )
+        self.connection.commit()
+
+    def save_quality(self, run_id: str, target_date: str, assessment: dict) -> None:
+        self.connection.execute(
+            "INSERT OR REPLACE INTO run_quality(run_id,target_date,assessment) VALUES(?,?,?)",
+            (run_id, target_date, json.dumps(assessment, ensure_ascii=False)),
+        )
         self.connection.commit()
 
     def close(self) -> None:

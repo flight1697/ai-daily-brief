@@ -14,12 +14,20 @@ def test_dashboard_contains_only_aggregate_daily_data() -> None:
         "target_date": "2026-07-11", "status": "delivered",
         "recipient": "private@example.com", "subject": "private subject",
     }]
-    metrics, daily = build_dashboard_data(date(2026, 7, 11), 30, runs, [], deliveries)
+    quality = [{
+        "passed": True, "official_ratio": 0.6, "multi_source_ratio": 0.3,
+        "summary_completeness": 1, "average_score": 65, "warnings": [],
+    }]
+    metrics, daily = build_dashboard_data(
+        date(2026, 7, 11), 30, runs, [], deliveries, quality
+    )
     rendered = render_dashboard(
         metrics, daily, generated_at=datetime(2026, 7, 12, tzinfo=timezone.utc)
     )
     assert "已送达" in rendered
     assert "200" in rendered
+    assert "内容质量" in rendered
+    assert "60.0%" in rendered
     assert "private-message-id" not in rendered
     assert "private@example.com" not in rendered
     assert "private subject" not in rendered

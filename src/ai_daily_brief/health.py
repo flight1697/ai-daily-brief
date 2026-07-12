@@ -30,7 +30,8 @@ class HealthStatus:
 
 
 def evaluate_health(target_date: date, runs: list[dict[str, Any]],
-                    deliveries: list[dict[str, Any]]) -> HealthStatus:
+                    deliveries: list[dict[str, Any]],
+                    quality_rows: list[dict[str, Any]] | None = None) -> HealthStatus:
     status = HealthStatus(target_date=target_date.isoformat(), runs_count=len(runs))
     if not runs:
         status.issues.append("未找到日报运行记录")
@@ -58,6 +59,30 @@ def evaluate_health(target_date: date, runs: list[dict[str, Any]],
         status.issues.append("邮件已发送，但尚未确认送达")
     else:
         status.issues.append("未找到邮件投递回调记录")
+
+    quality_rows = quality_rows or []
+    target_quality = next(
+        (row for row in quality_rows if str(row.get("target_date")) == target_date.isoformat()),
+        None,
+    )
+    if target_quality:
+        if not target_quality.get("passed"):
+            status.issues.append("内容质量门禁未通过")
+        status.warnings.extend(str(item) for item in (target_quality.get("warnings") or []))
+    elif quality_rows:
+        status.warnings.append("昨日没有质量评估记录")
+
+    daily_quality: dict[str, dict[str, Any]] = {}
+    for row in quality_rows:
+        target = str(row.get("target_date") or "")
+        if target:
+            daily_quality.setdefault(target, row)
+    recent_quality = [daily_quality[key] for key in sorted(daily_quality, reverse=True)[:3]]
+    if len(recent_quality) == 3:
+        if all(float(row.get("multi_source_ratio") or 0) < 0.2 for row in recent_quality):
+            status.issues.append("连续3天交叉核验比例低于20%")
+        if all(float(row.get("official_ratio") or 0) == 0 for row in recent_quality):
+            status.issues.append("连续3天没有官方来源入选")
 
     status.healthy = not status.issues
     return status
@@ -90,7 +115,19 @@ def check_health(url: str, service_role_key: str, target_date: date) -> HealthSt
             },
         )
         deliveries_response.raise_for_status()
-    return evaluate_health(target_date, runs_response.json(), deliveries_response.json())
+        quality_response = client.get(
+            "/rest/v1/run_quality",
+            params=[
+                ("target_date", f"gte.{(target_date - timedelta(days=2)).isoformat()}"),
+                ("target_date", f"lte.{day}"),
+                ("select", "target_date,passed,official_ratio,multi_source_ratio,warnings"),
+                ("order", "target_date.desc"),
+            ],
+        )
+        quality_response.raise_for_status()
+    return evaluate_health(
+        target_date, runs_response.json(), deliveries_response.json(), quality_response.json()
+    )
 
 
 def render_alert(status: HealthStatus) -> str:

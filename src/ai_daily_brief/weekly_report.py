@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 
 from .config import Settings
 from .delivery import send_email
-from .metrics_remote import fetch_period_rows
+from .metrics_remote import fetch_period_rows, fetch_quality_rows
 
 
 @dataclass(slots=True)
@@ -35,6 +35,13 @@ class WeeklyMetrics:
     source_errors: int = 0
     source_success_rate: float = 0.0
     problem_sources: list[dict[str, Any]] = field(default_factory=list)
+    quality_runs: int = 0
+    quality_pass_rate: float = 0.0
+    average_official_ratio: float = 0.0
+    average_multi_source_ratio: float = 0.0
+    average_summary_completeness: float = 0.0
+    average_quality_score: float = 0.0
+    quality_warning_runs: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -64,7 +71,8 @@ def representative_daily_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]
 
 def summarize_week(end_date: date, days: int, runs: list[dict[str, Any]],
                    source_runs: list[dict[str, Any]],
-                   deliveries: list[dict[str, Any]]) -> WeeklyMetrics:
+                   deliveries: list[dict[str, Any]],
+                   quality_rows: list[dict[str, Any]] | None = None) -> WeeklyMetrics:
     if days < 1:
         raise ValueError("days must be at least 1")
     start_date = end_date - timedelta(days=days - 1)
@@ -109,6 +117,23 @@ def summarize_week(end_date: date, days: int, runs: list[dict[str, Any]],
         {"source": source, "errors": count}
         for source, count in sorted(error_counts.items(), key=lambda item: (-item[1], item[0]))
     ]
+    quality_rows = quality_rows or []
+    metrics.quality_runs = len(quality_rows)
+    if quality_rows:
+        metrics.quality_pass_rate = round(
+            sum(bool(row.get("passed")) for row in quality_rows) / len(quality_rows) * 100, 2
+        )
+        metrics.average_official_ratio = round(
+            _average(quality_rows, "official_ratio") * 100, 2
+        )
+        metrics.average_multi_source_ratio = round(
+            _average(quality_rows, "multi_source_ratio") * 100, 2
+        )
+        metrics.average_summary_completeness = round(
+            _average(quality_rows, "summary_completeness") * 100, 2
+        )
+        metrics.average_quality_score = _average(quality_rows, "average_score")
+        metrics.quality_warning_runs = sum(bool(row.get("warnings")) for row in quality_rows)
     return metrics
 
 
@@ -120,7 +145,8 @@ def fetch_weekly_metrics(url: str, service_role_key: str, end_date: date,
     runs, source_runs, deliveries = fetch_period_rows(
         url, service_role_key, start_date, end_date
     )
-    return summarize_week(end_date, days, runs, source_runs, deliveries)
+    quality_rows = fetch_quality_rows(url, service_role_key, start_date, end_date)
+    return summarize_week(end_date, days, runs, source_runs, deliveries, quality_rows)
 
 
 def render_weekly_report(metrics: WeeklyMetrics) -> str:
@@ -147,6 +173,9 @@ def render_weekly_report(metrics: WeeklyMetrics) -> str:
 <tr><td style="padding:10px;border:1px solid #ddd">LLM 摘要使用率</td><td style="padding:10px;border:1px solid #ddd">{metrics.llm_usage_rate}%</td></tr>
 <tr><td style="padding:10px;border:1px solid #ddd">信息源成功率</td><td style="padding:10px;border:1px solid #ddd">{metrics.source_success_rate}%（{metrics.source_errors}/{metrics.source_checks} 次失败）</td></tr>
 <tr><td style="padding:10px;border:1px solid #ddd">平均耗时</td><td style="padding:10px;border:1px solid #ddd">{metrics.average_duration_seconds} 秒</td></tr>
+<tr><td style="padding:10px;border:1px solid #ddd">质量门禁通过率</td><td style="padding:10px;border:1px solid #ddd">{metrics.quality_pass_rate}%（{metrics.quality_runs} 次评估）</td></tr>
+<tr><td style="padding:10px;border:1px solid #ddd">官方来源 / 交叉核验</td><td style="padding:10px;border:1px solid #ddd">{metrics.average_official_ratio}% / {metrics.average_multi_source_ratio}%</td></tr>
+<tr><td style="padding:10px;border:1px solid #ddd">摘要完整率 / 平均质量分</td><td style="padding:10px;border:1px solid #ddd">{metrics.average_summary_completeness}% / {metrics.average_quality_score}</td></tr>
 </table>
 <h2>需要维护的信息源</h2><ul>{problem_rows}</ul>
 <p style="color:#57606a">数据来自 Supabase 长期指标和 Resend 投递回调。</p>

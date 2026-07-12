@@ -23,7 +23,8 @@ class SupabaseMetricsStore:
     def enabled(self) -> bool:
         return bool(self.url and self.headers["apikey"])
 
-    def save(self, stats: RunStats, source_runs: list[SourceRunStats], recipient: str = "") -> None:
+    def save(self, stats: RunStats, source_runs: list[SourceRunStats], recipient: str = "",
+             quality: dict | None = None) -> None:
         if not self.enabled:
             return
         with httpx.Client(timeout=30, headers=self.headers) as client:
@@ -36,6 +37,12 @@ class SupabaseMetricsStore:
                 response = client.post(
                     f"{self.url}/rest/v1/source_runs?on_conflict=run_id,source_name",
                     json=[item.to_dict() for item in source_runs],
+                )
+                response.raise_for_status()
+            if quality is not None:
+                response = client.post(
+                    f"{self.url}/rest/v1/run_quality?on_conflict=run_id",
+                    json={"run_id": stats.run_id, "target_date": stats.target_date, **quality},
                 )
                 response.raise_for_status()
             if stats.email_status.startswith("sent:"):
@@ -56,12 +63,13 @@ class SupabaseMetricsStore:
 
 
 def persist_remote_metrics(url: str, key: str, stats: RunStats,
-                           source_runs: list[SourceRunStats], recipient: str = "") -> bool:
+                           source_runs: list[SourceRunStats], recipient: str = "",
+                           quality: dict | None = None) -> bool:
     store = SupabaseMetricsStore(url, key)
     if not store.enabled:
         return False
     try:
-        store.save(stats, source_runs, recipient)
+        store.save(stats, source_runs, recipient, quality)
         return True
     except httpx.HTTPError as exc:
         # Metrics must not block a successfully generated or delivered digest.

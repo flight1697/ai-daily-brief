@@ -63,5 +63,9 @@ def test_low_quality_digest_is_persisted_but_not_sent(
     assert json.loads(quality_output.read_text(encoding="utf-8"))["passed"] is False
     connection = sqlite3.connect(database_path)
     stored = json.loads(connection.execute("SELECT stats FROM runs").fetchone()[0])
+    stored_quality = json.loads(
+        connection.execute("SELECT assessment FROM run_quality").fetchone()[0]
+    )
     connection.close()
     assert stored["email_status"] == "blocked:quality"
+    assert stored_quality["passed"] is False

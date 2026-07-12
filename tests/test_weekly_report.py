@@ -34,7 +34,17 @@ def test_weekly_report_uses_latest_run_per_day() -> None:
         {"target_date": "2026-07-10", "status": "delivered"},
         {"target_date": "2026-07-11", "status": "delivered"},
     ]
-    metrics = summarize_week(date(2026, 7, 11), 7, runs, sources, deliveries)
+    quality = [
+        {
+            "passed": True, "official_ratio": 0.6, "multi_source_ratio": 0.3,
+            "summary_completeness": 1, "average_score": 65, "warnings": [],
+        },
+        {
+            "passed": False, "official_ratio": 0.2, "multi_source_ratio": 0.1,
+            "summary_completeness": 0.7, "average_score": 45, "warnings": ["low"],
+        },
+    ]
+    metrics = summarize_week(date(2026, 7, 11), 7, runs, sources, deliveries, quality)
     assert metrics.attempts == 4
     assert metrics.active_days == 2
     assert metrics.successful_send_days == 2
@@ -45,6 +55,12 @@ def test_weekly_report_uses_latest_run_per_day() -> None:
     assert metrics.llm_usage_rate == 50
     assert metrics.source_success_rate == 50
     assert metrics.problem_sources == [{"source": "Broken RSS", "errors": 1}]
+    assert metrics.quality_pass_rate == 50
+    assert metrics.average_official_ratio == 40
+    assert metrics.average_multi_source_ratio == 20
+    assert metrics.average_summary_completeness == 85
+    assert metrics.average_quality_score == 55
+    assert metrics.quality_warning_runs == 1
 
 
 def test_weekly_report_handles_empty_period() -> None:
