@@ -25,11 +25,28 @@ create table if not exists public.source_runs (
   primary key (run_id, source_name)
 );
 
+create table if not exists public.deliveries (
+  message_id text primary key,
+  run_id uuid references public.runs(run_id) on delete set null,
+  target_date date,
+  recipient text not null default '',
+  subject text not null default '',
+  status text not null,
+  sent_at timestamptz,
+  delivered_at timestamptz,
+  bounced_at timestamptz,
+  complained_at timestamptz,
+  last_event_at timestamptz not null default now(),
+  event_payload jsonb not null default '{}'::jsonb
+);
+
 create index if not exists source_runs_target_date_idx on public.source_runs(target_date);
 create index if not exists runs_target_date_idx on public.runs(target_date);
+create index if not exists deliveries_target_date_idx on public.deliveries(target_date);
 
 alter table public.runs enable row level security;
 alter table public.source_runs enable row level security;
+alter table public.deliveries enable row level security;
 
 create or replace view public.daily_metrics as
 select

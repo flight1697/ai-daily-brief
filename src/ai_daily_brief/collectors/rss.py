@@ -8,6 +8,7 @@ from html import unescape
 from typing import Any
 
 import feedparser
+import httpx
 
 from ..models import Article
 
@@ -22,16 +23,16 @@ def _entry_time(entry: Any) -> datetime | None:
 
 
 def collect_rss(source: dict[str, Any], timeout: float = 20.0) -> list[Article]:
-    # feedparser uses urllib internally; the timeout is applied globally per parse call.
-    import socket
-
     feed = None
     last_error: Exception | None = None
     for attempt in range(2):
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(timeout)
         try:
-            candidate = feedparser.parse(source["url"], request_headers={"User-Agent": "AI-Daily-Brief/0.1"})
+            response = httpx.get(
+                source["url"], headers={"User-Agent": "AI-Daily-Brief/0.1"},
+                timeout=timeout, follow_redirects=True,
+            )
+            response.raise_for_status()
+            candidate = feedparser.parse(response.content)
             if getattr(candidate, "bozo", False) and not candidate.entries:
                 raise RuntimeError(f"RSS parse failed: {getattr(candidate, 'bozo_exception', 'unknown error')}")
             feed = candidate
@@ -40,8 +41,6 @@ def collect_rss(source: dict[str, Any], timeout: float = 20.0) -> list[Article]:
             last_error = exc
             if attempt == 0:
                 time.sleep(1)
-        finally:
-            socket.setdefaulttimeout(old_timeout)
     if feed is None:
         raise RuntimeError(f"RSS failed after 2 attempts: {last_error}") from last_error
 

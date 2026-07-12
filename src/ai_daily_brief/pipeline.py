@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -17,6 +18,12 @@ from .models import Article, RunStats, SourceRunStats
 from .processors import classify, deduplicate, rank
 
 logger = logging.getLogger(__name__)
+
+
+def _timed_collect_rss(source: dict) -> tuple[list[Article], float]:
+    started = time.monotonic()
+    articles = collect_rss(source)
+    return articles, round(time.monotonic() - started, 3)
 
 
 def _window(target_date: date, tz_name: str) -> tuple[datetime, datetime]:
@@ -50,28 +57,33 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     else:
         config = load_sources(source_path)
         deduplication_config = config.get("deduplication", {})
-        for source in config.get("rss", []):
-            if not source.get("enabled", True):
-                continue
-            source_started = time.monotonic()
-            try:
-                collected = collect_rss(source)
-                articles.extend(collected)
-                source_runs.append(SourceRunStats(
-                    run_id=stats.run_id, target_date=stats.target_date,
-                    source_name=source["name"], source_type="rss",
-                    collected_count=len(collected),
-                    duration_seconds=round(time.monotonic() - source_started, 3),
-                ))
-            except Exception as exc:  # One broken source must not abort the daily run.
-                stats.source_errors += 1
-                logger.warning("Source %s failed: %s", source.get("name"), exc)
-                source_runs.append(SourceRunStats(
-                    run_id=stats.run_id, target_date=stats.target_date,
-                    source_name=source.get("name", "unknown"), source_type="rss",
-                    status="error", error_message=str(exc)[:1000],
-                    duration_seconds=round(time.monotonic() - source_started, 3),
-                ))
+        enabled_sources = [source for source in config.get("rss", []) if source.get("enabled", True)]
+        max_workers = min(int(config.get("collection", {}).get("rss_concurrency", 5)), len(enabled_sources) or 1)
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {
+                executor.submit(_timed_collect_rss, source): (source, time.monotonic())
+                for source in enabled_sources
+            }
+            for future in as_completed(futures):
+                source, submitted_at = futures[future]
+                try:
+                    collected, source_duration = future.result()
+                    articles.extend(collected)
+                    source_runs.append(SourceRunStats(
+                        run_id=stats.run_id, target_date=stats.target_date,
+                        source_name=source["name"], source_type="rss",
+                        collected_count=len(collected),
+                        duration_seconds=source_duration,
+                    ))
+                except Exception as exc:  # One broken source must not abort the daily run.
+                    stats.source_errors += 1
+                    logger.warning("Source %s failed: %s", source.get("name"), exc)
+                    source_runs.append(SourceRunStats(
+                        run_id=stats.run_id, target_date=stats.target_date,
+                        source_name=source.get("name", "unknown"), source_type="rss",
+                        status="error", error_message=str(exc)[:1000],
+                        duration_seconds=round(time.monotonic() - submitted_at, 3),
+                    ))
         github_started = time.monotonic()
         try:
             collected = collect_github(config.get("github", {}), settings.github_token,
@@ -149,7 +161,7 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
             database.save_run(stats, source_runs)
             database.close()
             persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
-                                   stats, source_runs)
+                                   stats, source_runs, settings.email_to)
             raise
     else:
         stats.email_status = "dry_run"
@@ -158,5 +170,5 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     database.save_run(stats, source_runs)
     database.close()
     persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
-                           stats, source_runs)
+                           stats, source_runs, settings.email_to)
     return selected, stats, html

@@ -1,3 +1,6 @@
+collection:
+  rss_concurrency: 5
+
 rss:
   - name: OpenAI News
     url: https://openai.com/news/rss.xml

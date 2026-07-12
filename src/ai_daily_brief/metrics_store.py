@@ -23,7 +23,7 @@ class SupabaseMetricsStore:
     def enabled(self) -> bool:
         return bool(self.url and self.headers["apikey"])
 
-    def save(self, stats: RunStats, source_runs: list[SourceRunStats]) -> None:
+    def save(self, stats: RunStats, source_runs: list[SourceRunStats], recipient: str = "") -> None:
         if not self.enabled:
             return
         with httpx.Client(timeout=30, headers=self.headers) as client:
@@ -38,18 +38,32 @@ class SupabaseMetricsStore:
                     json=[item.to_dict() for item in source_runs],
                 )
                 response.raise_for_status()
+            if stats.email_status.startswith("sent:"):
+                message_id = stats.email_status.split(":", 1)[1]
+                response = client.post(
+                    f"{self.url}/rest/v1/deliveries?on_conflict=message_id",
+                    json={
+                        "message_id": message_id,
+                        "run_id": stats.run_id,
+                        "target_date": stats.target_date,
+                        "recipient": recipient,
+                        "status": "sent",
+                        "sent_at": stats.finished_at,
+                        "last_event_at": stats.finished_at,
+                    },
+                )
+                response.raise_for_status()
 
 
 def persist_remote_metrics(url: str, key: str, stats: RunStats,
-                           source_runs: list[SourceRunStats]) -> bool:
+                           source_runs: list[SourceRunStats], recipient: str = "") -> bool:
     store = SupabaseMetricsStore(url, key)
     if not store.enabled:
         return False
     try:
-        store.save(stats, source_runs)
+        store.save(stats, source_runs, recipient)
         return True
     except httpx.HTTPError as exc:
         # Metrics must not block a successfully generated or delivered digest.
         logger.exception("Remote metrics persistence failed: %s", exc)
         return False
-

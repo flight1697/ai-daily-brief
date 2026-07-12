@@ -20,6 +20,12 @@ def test_database_migrates_old_runs_table(tmp_path: Path) -> None:
     assert "run_id" in columns
 
 
+def test_metrics_schema_includes_deliveries_migration() -> None:
+    sql = Path("supabase/migrations/001_metrics.sql").read_text(encoding="utf-8")
+    assert "create table if not exists public.deliveries" in sql
+    assert "delivered_at timestamptz" in sql
+
+
 def test_metrics_are_persisted_and_reported(tmp_path: Path) -> None:
     path = tmp_path / "metrics.db"
     stats = RunStats(
@@ -44,4 +50,3 @@ def test_metrics_are_persisted_and_reported(tmp_path: Path) -> None:
 
 def test_supabase_store_is_disabled_without_credentials() -> None:
     assert SupabaseMetricsStore("", "").enabled is False
-

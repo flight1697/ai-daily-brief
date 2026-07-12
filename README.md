@@ -35,6 +35,7 @@ Jinja2 HTML → Resend → 运行数据写入SQLite
 - 无 DeepSeek 密钥时可降级运行，便于测试与故障容错
 - 响应式 HTML 邮件、Resend 投递、SQLite 指标留痕
 - 单一数据源失败隔离、GitHub Actions 定时执行、pytest 测试
+- 可配置并发RSS采集，并记录每个信源的数量、状态与耗时
 
 ## 本地运行
 
@@ -111,6 +112,8 @@ python -m ai_daily_brief.metrics_report --database data/ai_daily.db
 ```
 
 如需跨GitHub Actions任务长期累计，在Supabase SQL Editor执行 `supabase/migrations/001_metrics.sql`，然后配置仓库Secrets `SUPABASE_URL`和`SUPABASE_SERVICE_ROLE_KEY`。远程指标写入失败只记录日志，不会阻断日报发送。
+
+迁移同时创建`deliveries`表。`supabase/functions/resend-webhook`提供Resend Webhook接收器，验证Svix签名并记录`sent`、`delivered`、`bounced`和`complained`状态。部署步骤见该目录README。
 
 GitHub Actions 的数据库文件只作为当次 artifact 保存 30 天，不是永久数据库。要统计长期指标，建议后续接入 PostgreSQL、对象存储或在每次运行结束时导出指标。
 
