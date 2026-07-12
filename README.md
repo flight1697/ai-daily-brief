@@ -94,7 +94,9 @@ pytest -q
 2. 在仓库 `Settings → Secrets and variables → Actions` 新增：
    `DEEPSEEK_API_KEY`、`RESEND_API_KEY`、`EMAIL_FROM`、`EMAIL_TO`。
 3. 在 Actions 页面手动运行一次 `AI Daily Brief`，检查产物与邮件。
-4. 工作流使用 `0 1 * * *`，即北京时间 09:00。GitHub 的 schedule 可能因平台排队延迟数分钟；若业务要求严格准点，应迁移到云函数或服务器 cron。
+4. 主调度使用 `45 0 * * *`，即北京时间 08:45，避开 GitHub Actions 整点高峰；补偿调度使用 `15 1 * * *`，即 09:15。
+
+两个调度共享并发锁。如果主任务延迟，补偿任务会等待；补偿任务执行前会读取当日工作流记录，只有主任务未成功时才发送，从而兼顾补发与防重复。手动触发不受守卫限制，便于指定日期补发。GitHub 的 schedule 仍不是严格实时服务；若业务要求绝对准点，应迁移到云函数或服务器 cron。
 
 GitHub Actions 的数据库文件只作为当次 artifact 保存 30 天，不是永久数据库。要统计长期指标，建议后续接入 PostgreSQL、对象存储或在每次运行结束时导出指标。
 
