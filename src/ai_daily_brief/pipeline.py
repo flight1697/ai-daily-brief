@@ -16,6 +16,7 @@ from .delivery import render_digest, send_email
 from .metrics_store import persist_remote_metrics
 from .models import Article, RunStats, SourceRunStats
 from .processors import classify, deduplicate, rank
+from .quality import DigestQualityError, assess_quality
 
 logger = logging.getLogger(__name__)
 
@@ -44,19 +45,22 @@ def _sample_articles(path: str | Path) -> list[Article]:
 
 def run_pipeline(settings: Settings, target_date: date, source_path: str = "config/sources.yaml",
                  sample_path: str | None = None, send: bool = False, output_path: str | None = None,
-                 max_items: int = 20) -> tuple[list[Article], RunStats, str]:
+                 max_items: int = 20, quality_output_path: str | None = None
+                 ) -> tuple[list[Article], RunStats, str]:
     started = time.monotonic()
     stats = RunStats(target_date=target_date.isoformat(), started_at=datetime.now(timezone.utc).isoformat())
     window_start, window_end = _window(target_date, settings.timezone)
     articles: list[Article] = []
     source_runs: list[SourceRunStats] = []
     deduplication_config: dict = {}
+    quality_config: dict = {}
 
     if sample_path:
         articles = _sample_articles(sample_path)
     else:
         config = load_sources(source_path)
         deduplication_config = config.get("deduplication", {})
+        quality_config = config.get("quality", {})
         enabled_sources = [source for source in config.get("rss", []) if source.get("enabled", True)]
         max_workers = min(int(config.get("collection", {}).get("rss_concurrency", 5)), len(enabled_sources) or 1)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -139,6 +143,14 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     stats.selected = len(selected)
     stats.llm_used = enrich_articles(selected, settings.deepseek_api_key,
                                       settings.deepseek_base_url, settings.deepseek_model)
+    quality = assess_quality(
+        selected,
+        min_items=int(quality_config.get("min_items", 3)),
+        min_sources=int(quality_config.get("min_sources", 2)),
+        min_categories=int(quality_config.get("min_categories", 2)),
+        min_summary_completeness=float(quality_config.get("min_summary_completeness", 0.8)),
+    )
+    logger.info("Quality assessment: %s", json.dumps(quality.to_dict(), ensure_ascii=False))
 
     database = Database(settings.database_path)
     database.save_articles(selected)
@@ -148,8 +160,23 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(html, encoding="utf-8")
+    if quality_output_path:
+        quality_output = Path(quality_output_path)
+        quality_output.parent.mkdir(parents=True, exist_ok=True)
+        quality_output.write_text(
+            json.dumps(quality.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     if send:
+        if not quality.passed:
+            stats.email_status = "blocked:quality"
+            stats.duration_seconds = round(time.monotonic() - started, 2)
+            stats.finished_at = datetime.now(timezone.utc).isoformat()
+            database.save_run(stats, source_runs)
+            database.close()
+            persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
+                                   stats, source_runs, settings.email_to)
+            raise DigestQualityError(quality)
         try:
             message_id = send_email(settings.resend_api_key, settings.email_from, settings.email_to,
                                     f"AI行业日报｜{target_date.isoformat()}", html)

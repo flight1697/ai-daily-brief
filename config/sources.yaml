@@ -94,3 +94,9 @@ github:
 deduplication:
   title_threshold: 0.88
   content_threshold: 0.72
+
+quality:
+  min_items: 3
+  min_sources: 2
+  min_categories: 2
+  min_summary_completeness: 0.8
