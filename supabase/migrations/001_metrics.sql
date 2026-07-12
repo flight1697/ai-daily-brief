@@ -48,7 +48,7 @@ alter table public.runs enable row level security;
 alter table public.source_runs enable row level security;
 alter table public.deliveries enable row level security;
 
-create or replace view public.daily_metrics as
+create or replace view public.daily_metrics with (security_invoker = true) as
 select
   target_date,
   count(*) as attempts,
