@@ -24,6 +24,7 @@ ai-daily-brief = "ai_daily_brief.cli:main"
 ai-daily-metrics = "ai_daily_brief.metrics_report:main"
 ai-daily-health = "ai_daily_brief.health:main"
 ai-daily-weekly = "ai_daily_brief.weekly_report:main"
+ai-daily-dashboard = "ai_daily_brief.dashboard:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

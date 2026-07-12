@@ -10,10 +10,9 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import httpx
-
 from .config import Settings
 from .delivery import send_email
+from .metrics_remote import fetch_period_rows
 
 
 @dataclass(slots=True)
@@ -47,6 +46,22 @@ def _average(rows: list[dict[str, Any]], field_name: str) -> float:
     return round(sum(float(row.get(field_name) or 0) for row in rows) / len(rows), 2)
 
 
+def representative_daily_runs(runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Select one representative run per day, preferring a successful delivery attempt."""
+    runs_by_day: dict[str, list[dict[str, Any]]] = {}
+    for run in sorted(runs, key=lambda item: str(item.get("finished_at") or ""), reverse=True):
+        target = str(run.get("target_date", ""))
+        if target:
+            runs_by_day.setdefault(target, []).append(run)
+    return [
+        next(
+            (run for run in day_runs if str(run.get("email_status", "")).startswith("sent:")),
+            day_runs[0],
+        )
+        for day_runs in runs_by_day.values()
+    ]
+
+
 def summarize_week(end_date: date, days: int, runs: list[dict[str, Any]],
                    source_runs: list[dict[str, Any]],
                    deliveries: list[dict[str, Any]]) -> WeeklyMetrics:
@@ -60,20 +75,9 @@ def summarize_week(end_date: date, days: int, runs: list[dict[str, Any]],
         attempts=len(runs),
     )
 
-    runs_by_day: dict[str, list[dict[str, Any]]] = {}
-    for run in sorted(runs, key=lambda item: str(item.get("finished_at") or ""), reverse=True):
-        target = str(run.get("target_date", ""))
-        if target:
-            runs_by_day.setdefault(target, []).append(run)
     # Prefer the most recent successful send so later manual dry-runs do not
     # hide a real delivery. If a day never sent, keep its latest attempt.
-    daily_rows = [
-        next(
-            (run for run in day_runs if str(run.get("email_status", "")).startswith("sent:")),
-            day_runs[0],
-        )
-        for day_runs in runs_by_day.values()
-    ]
+    daily_rows = representative_daily_runs(runs)
     metrics.active_days = len(daily_rows)
     metrics.successful_send_days = sum(
         str(row.get("email_status", "")).startswith("sent:") for row in daily_rows
@@ -113,37 +117,10 @@ def fetch_weekly_metrics(url: str, service_role_key: str, end_date: date,
     if not url or not service_role_key:
         raise ValueError("Supabase weekly-report credentials are required")
     start_date = end_date - timedelta(days=days - 1)
-    headers = {
-        "apikey": service_role_key,
-        "Authorization": f"Bearer {service_role_key}",
-    }
-    # PostgREST needs duplicate target_date filters, so pass a list of tuples.
-    filters = [
-        ("target_date", f"gte.{start_date.isoformat()}"),
-        ("target_date", f"lte.{end_date.isoformat()}"),
-    ]
-    with httpx.Client(base_url=url.rstrip("/"), headers=headers, timeout=30) as client:
-        runs_response = client.get(
-            "/rest/v1/runs",
-            params=filters + [
-                ("select", "target_date,finished_at,collected,in_window,deduplicated,selected,source_errors,llm_used,email_status,duration_seconds"),
-                ("order", "finished_at.desc"),
-            ],
-        )
-        runs_response.raise_for_status()
-        sources_response = client.get(
-            "/rest/v1/source_runs",
-            params=filters + [("select", "target_date,source_name,status")],
-        )
-        sources_response.raise_for_status()
-        deliveries_response = client.get(
-            "/rest/v1/deliveries",
-            params=filters + [("select", "target_date,status")],
-        )
-        deliveries_response.raise_for_status()
-    return summarize_week(
-        end_date, days, runs_response.json(), sources_response.json(), deliveries_response.json()
+    runs, source_runs, deliveries = fetch_period_rows(
+        url, service_role_key, start_date, end_date
     )
+    return summarize_week(end_date, days, runs, source_runs, deliveries)
 
 
 def render_weekly_report(metrics: WeeklyMetrics) -> str:

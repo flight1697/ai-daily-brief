@@ -219,6 +219,7 @@ data/*.db
 data/*.html
 data/*.json
 !data/sample_articles.json
+public/
 
 # Streamlit
 .streamlit/secrets.toml

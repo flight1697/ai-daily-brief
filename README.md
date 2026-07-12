@@ -139,6 +139,16 @@ python -m ai_daily_brief.weekly_report --end-date 2026-07-12
 python -m ai_daily_brief.weekly_report --end-date 2026-07-12 --send
 ```
 
+## 公开运行仪表盘
+
+`.github/workflows/pages.yml`每天北京时间11:00从Supabase读取最近30天指标，生成纯静态GitHub Pages仪表盘。页面展示运行覆盖率、确认送达率、日均处理量、信源健康度和每日处理漏斗，不包含邮箱、邮件主题、消息ID、新闻正文、错误详情或任何密钥。
+
+本地生成命令：
+
+```powershell
+python -m ai_daily_brief.dashboard --days 30 --output public/index.html
+```
+
 ## 质量边界
 
 - “官方来源”表示链接来自配置为官方的站点或官方 GitHub 仓库，不代表系统对全部主张做了独立审计。
