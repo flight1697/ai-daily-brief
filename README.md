@@ -128,6 +128,17 @@ python -m ai_daily_brief.health --date 2026-07-11
 python -m ai_daily_brief.health --date 2026-07-11 --alert
 ```
 
+## 每周运营周报
+
+`.github/workflows/weekly.yml`在每周一北京时间10:30汇总此前7天的Supabase指标，自动计算实际运行天数、日报投递成功率、日均采集与输出数量、LLM摘要使用率、信息源成功率和高频故障信源。定时任务会把HTML周报发送到`EMAIL_TO`，并将同一份HTML作为GitHub Actions artifact保留90天。
+
+成功率以应运行的7天为分母，因此漏跑也会反映在指标里；同一天发生重试时，内容指标优先采用最后一次成功发送，否则采用最后一次尝试，`attempts`仍保留全部尝试次数。手动生成默认不发邮件：
+
+```powershell
+python -m ai_daily_brief.weekly_report --end-date 2026-07-12
+python -m ai_daily_brief.weekly_report --end-date 2026-07-12 --send
+```
+
 ## 质量边界
 
 - “官方来源”表示链接来自配置为官方的站点或官方 GitHub 仓库，不代表系统对全部主张做了独立审计。

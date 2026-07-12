@@ -1,0 +1,54 @@
+name: AI Daily Brief Weekly Report
+
+on:
+  schedule:
+    - cron: "30 2 * * 1" # Monday 10:30 Asia/Shanghai.
+  workflow_dispatch:
+    inputs:
+      end_date:
+        description: "Optional report end date (YYYY-MM-DD)"
+        required: false
+      send_email:
+        description: "Send the generated report by email"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-daily-brief-weekly-report
+  cancel-in-progress: true
+
+jobs:
+  weekly-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install .
+      - name: Generate weekly report
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          DATE_ARG=""
+          SEND_ARG="--send"
+          if [ -n "${{ inputs.end_date }}" ]; then DATE_ARG="--end-date ${{ inputs.end_date }}"; fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.send_email }}" != "true" ]; then SEND_ARG=""; fi
+          python -m ai_daily_brief.weekly_report $DATE_ARG $SEND_ARG --output data/weekly_report.html
+      - name: Upload weekly report
+        uses: actions/upload-artifact@v7
+        with:
+          name: ai-daily-brief-weekly-${{ github.run_id }}
+          path: data/weekly_report.html
+          retention-days: 90
