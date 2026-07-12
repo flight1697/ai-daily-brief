@@ -124,13 +124,16 @@ def summarize_week(end_date: date, days: int, runs: list[dict[str, Any]],
             sum(bool(row.get("passed")) for row in quality_rows) / len(quality_rows) * 100, 2
         )
         metrics.average_official_ratio = round(
-            _average(quality_rows, "official_ratio") * 100, 2
+            sum(float(row.get("official_ratio") or 0) for row in quality_rows)
+            / len(quality_rows) * 100, 2
         )
         metrics.average_multi_source_ratio = round(
-            _average(quality_rows, "multi_source_ratio") * 100, 2
+            sum(float(row.get("multi_source_ratio") or 0) for row in quality_rows)
+            / len(quality_rows) * 100, 2
         )
         metrics.average_summary_completeness = round(
-            _average(quality_rows, "summary_completeness") * 100, 2
+            sum(float(row.get("summary_completeness") or 0) for row in quality_rows)
+            / len(quality_rows) * 100, 2
         )
         metrics.average_quality_score = _average(quality_rows, "average_score")
         metrics.quality_warning_runs = sum(bool(row.get("warnings")) for row in quality_rows)

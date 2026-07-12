@@ -84,3 +84,15 @@ def test_weekly_report_escapes_source_names() -> None:
     rendered = render_weekly_report(metrics)
     assert "&lt;script&gt;" in rendered
     assert "<script>" not in rendered
+
+
+def test_quality_percentages_preserve_decimal_precision() -> None:
+    metrics = summarize_week(
+        date(2026, 7, 11), 7, [], [], [],
+        [{
+            "passed": True, "official_ratio": 0.545, "multi_source_ratio": 0.182,
+            "summary_completeness": 1, "average_score": 64.91, "warnings": [],
+        }],
+    )
+    assert metrics.average_official_ratio == 54.5
+    assert metrics.average_multi_source_ratio == 18.2
