@@ -4,6 +4,8 @@
 
 [查看公开运行仪表盘](https://flight1697.github.io/ai-daily-brief/) · [查看自动化任务](https://github.com/flight1697/ai-daily-brief/actions)
 
+[![CI](https://github.com/flight1697/ai-daily-brief/actions/workflows/ci.yml/badge.svg)](https://github.com/flight1697/ai-daily-brief/actions/workflows/ci.yml)
+
 > 当前版本：`0.1.0`。项目代码可运行，但“稳定运行天数、发送成功率、节省时间”等数据必须在真实部署后由日志统计，不能把目标值当成既成结果写进简历。
 
 ## 工作流
@@ -55,6 +57,12 @@ Copy-Item .env.example .env
 ```powershell
 python -m ai_daily_brief --sample --date 2026-07-10 --output data/sample.html
 ```
+
+## 工程质量门禁
+
+`.github/workflows/ci.yml`会在`main`分支推送和Pull Request上使用Python 3.11、3.12、3.13运行完整测试，并要求整体分支覆盖率不低于65%。通过测试后继续构建源码包和wheel、安装wheel验证全部命令入口，并对实际安装的运行时依赖执行漏洞扫描。
+
+Dependabot每周检查Python依赖和GitHub Actions版本，更新通过Pull Request进入同一套CI，不直接改动生产分支。
 
 运行真实采集但不发送邮件：
 
