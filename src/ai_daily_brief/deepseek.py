@@ -3,12 +3,18 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 
 import httpx
 
 from .models import Article
 
 logger = logging.getLogger(__name__)
+
+ALLOWED_CATEGORIES = {
+    "模型与产品发布", "企业与商业动态", "投融资与并购", "开源项目",
+    "研究与论文", "政策与监管", "AI应用案例", "其他",
+}
 
 SYSTEM_PROMPT = """你是严谨的AI行业新闻编辑。只能依据用户提供的材料工作，不能补充模型记忆中的事实。
 输出必须是JSON对象，不要使用Markdown。对象只有items字段，items是数组；每个元素包含id、category、summary、why_it_matters、tags。
@@ -37,6 +43,53 @@ def _json_payload(text: str) -> list[dict]:
     return value
 
 
+def _post_completion(base_url: str, api_key: str, request: dict) -> httpx.Response:
+    last_error: Exception | None = None
+    for attempt in range(3):
+        response: httpx.Response | None = None
+        try:
+            response = httpx.post(
+                f"{base_url.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=request, timeout=90,
+            )
+            if response.status_code != 429 and response.status_code < 500:
+                response.raise_for_status()
+                return response
+            last_error = httpx.HTTPStatusError(
+                f"Retryable DeepSeek status {response.status_code}",
+                request=response.request, response=response,
+            )
+        except httpx.TransportError as exc:
+            last_error = exc
+        if attempt < 2:
+            retry_after = response.headers.get("Retry-After") if response is not None else None
+            delay = float(retry_after) if retry_after and retry_after.isdigit() else 2 ** attempt
+            time.sleep(delay)
+    raise RuntimeError("DeepSeek failed after 3 attempts") from last_error
+
+
+def _apply_row(article: Article, row: object) -> bool:
+    if not isinstance(row, dict):
+        return False
+    summary = row.get("summary")
+    why_it_matters = row.get("why_it_matters")
+    tags = row.get("tags", [])
+    if not isinstance(summary, str) or not summary.strip():
+        return False
+    if not isinstance(why_it_matters, str) or not isinstance(tags, list):
+        return False
+    if not all(isinstance(tag, str) for tag in tags):
+        return False
+    category = row.get("category")
+    if isinstance(category, str) and category in ALLOWED_CATEGORIES:
+        article.category = category
+    article.summary = summary.strip()
+    article.why_it_matters = why_it_matters.strip()
+    article.tags = list(dict.fromkeys(article.tags + tags))[:5]
+    return True
+
+
 def enrich_articles(articles: list[Article], api_key: str, base_url: str,
                     model: str, batch_size: int = 8) -> bool:
     if not api_key:
@@ -45,6 +98,7 @@ def enrich_articles(articles: list[Article], api_key: str, base_url: str,
         logger.warning("DEEPSEEK_API_KEY is absent; using extractive summaries")
         return False
 
+    enriched_count = 0
     for start in range(0, len(articles), batch_size):
         batch = articles[start:start + batch_size]
         materials = [{
@@ -65,24 +119,23 @@ def enrich_articles(articles: list[Article], api_key: str, base_url: str,
             "response_format": {"type": "json_object"},
         }
         try:
-            response = httpx.post(
-                f"{base_url.rstrip('/')}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json=request, timeout=90,
-            )
-            response.raise_for_status()
+            response = _post_completion(base_url, api_key, request)
             rows = _json_payload(response.json()["choices"][0]["message"]["content"])
-            indexed = {int(row["id"]): row for row in rows}
+            indexed: dict[int, dict] = {}
+            for row in rows:
+                if not isinstance(row, dict) or "id" not in row:
+                    continue
+                try:
+                    indexed[int(row["id"])] = row
+                except (TypeError, ValueError):
+                    continue
             for index, article in enumerate(batch):
-                row = indexed.get(start + index, {})
-                article.category = row.get("category", article.category)
-                article.summary = row.get("summary", "").strip()
-                article.why_it_matters = row.get("why_it_matters", "").strip()
-                article.tags = list(dict.fromkeys(article.tags + row.get("tags", [])))[:5]
-                if not article.summary:
+                if _apply_row(article, indexed.get(start + index)):
+                    enriched_count += 1
+                else:
                     _fallback(article)
-        except (httpx.HTTPError, KeyError, ValueError, json.JSONDecodeError) as exc:
+        except (httpx.HTTPError, KeyError, ValueError, TypeError, json.JSONDecodeError, RuntimeError) as exc:
             logger.exception("DeepSeek batch failed; falling back: %s", exc)
             for article in batch:
                 _fallback(article)
-    return True
+    return enriched_count > 0

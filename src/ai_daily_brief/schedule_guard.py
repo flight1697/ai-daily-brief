@@ -17,10 +17,8 @@ def should_send(
     runs: list[dict[str, Any]],
     now: datetime | None = None,
 ) -> bool:
-    """Return false only when a successful primary schedule already delivered today."""
+    """Prevent any delayed scheduled run from delivering twice on the same UTC day."""
     if event_name != "schedule":
-        return True
-    if schedule != FALLBACK_SCHEDULE:
         return True
 
     now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
@@ -54,7 +52,7 @@ def github_runs(repository: str, token: str, workflow: str = "daily.yml") -> lis
 def main() -> None:
     event_name = os.getenv("GITHUB_EVENT_NAME", "workflow_dispatch")
     schedule = os.getenv("GITHUB_EVENT_SCHEDULE", "")
-    if event_name != "schedule" or schedule != FALLBACK_SCHEDULE:
+    if event_name != "schedule":
         print("true")
         return
     repository = os.environ["GITHUB_REPOSITORY"]
@@ -66,4 +64,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

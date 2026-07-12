@@ -41,11 +41,13 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     stats = RunStats(target_date=target_date.isoformat(), started_at=datetime.now(timezone.utc).isoformat())
     window_start, window_end = _window(target_date, settings.timezone)
     articles: list[Article] = []
+    deduplication_config: dict = {}
 
     if sample_path:
         articles = _sample_articles(sample_path)
     else:
         config = load_sources(source_path)
+        deduplication_config = config.get("deduplication", {})
         for source in config.get("rss", []):
             if not source.get("enabled", True):
                 continue
@@ -64,7 +66,11 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     stats.collected = len(articles)
     articles = [item for item in articles if window_start <= item.published_at.astimezone(timezone.utc) < window_end]
     stats.in_window = len(articles)
-    articles = deduplicate(articles)
+    articles = deduplicate(
+        articles,
+        title_threshold=float(deduplication_config.get("title_threshold", 0.88)),
+        content_threshold=float(deduplication_config.get("content_threshold", 0.72)),
+    )
     stats.deduplicated = len(articles)
     for article in articles:
         rank(classify(article))
