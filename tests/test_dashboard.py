@@ -41,4 +41,4 @@ def test_dashboard_escapes_problem_source() -> None:
     )
     rendered = render_dashboard(metrics, daily)
     assert "&lt;script&gt;" in rendered
-    assert "<script>" not in rendered
+    assert rendered.count("<script>") == 1  # The dashboard's own filter script only.
