@@ -29,6 +29,8 @@ class Settings:
     email_from: str = "AI Daily <daily@example.com>"
     email_to: str = ""
     github_token: str = ""
+    supabase_url: str = ""
+    supabase_service_role_key: str = ""
     database_path: str = "data/ai_daily.db"
     timezone: str = "Asia/Shanghai"
     log_level: str = "INFO"
@@ -44,6 +46,8 @@ class Settings:
             email_from=os.getenv("EMAIL_FROM", "AI Daily <daily@example.com>"),
             email_to=os.getenv("EMAIL_TO", ""),
             github_token=os.getenv("GITHUB_TOKEN", ""),
+            supabase_url=os.getenv("SUPABASE_URL", ""),
+            supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""),
             database_path=os.getenv("DATABASE_PATH", "data/ai_daily.db"),
             timezone=os.getenv("TIMEZONE", "Asia/Shanghai"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
@@ -53,4 +57,3 @@ class Settings:
 def load_sources(path: str | Path = "config/sources.yaml") -> dict[str, Any]:
     with Path(path).open(encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
-

@@ -4,7 +4,7 @@ import json
 import sqlite3
 from pathlib import Path
 
-from .models import Article, RunStats
+from .models import Article, RunStats, SourceRunStats
 
 
 SCHEMA = """
@@ -19,10 +19,22 @@ CREATE TABLE IF NOT EXISTS articles (
 );
 CREATE TABLE IF NOT EXISTS runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id TEXT NOT NULL UNIQUE,
   target_date TEXT NOT NULL,
   started_at TEXT NOT NULL,
   finished_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   stats TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS source_runs (
+  run_id TEXT NOT NULL,
+  target_date TEXT NOT NULL,
+  source_name TEXT NOT NULL,
+  source_type TEXT NOT NULL,
+  collected_count INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  error_message TEXT NOT NULL,
+  duration_seconds REAL NOT NULL,
+  PRIMARY KEY (run_id, source_name)
 );
 """
 
@@ -33,6 +45,11 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.connection = sqlite3.connect(self.path)
         self.connection.executescript(SCHEMA)
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(runs)")}
+        if "run_id" not in columns:
+            self.connection.execute("ALTER TABLE runs ADD COLUMN run_id TEXT")
+        self.connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS runs_run_id_idx ON runs(run_id)")
+        self.connection.commit()
 
     def save_articles(self, articles: list[Article]) -> None:
         import hashlib
@@ -48,15 +65,22 @@ class Database:
         )
         self.connection.commit()
 
-    def save_run(self, stats: RunStats) -> None:
+    def save_run(self, stats: RunStats, source_runs: list[SourceRunStats] | None = None) -> None:
         self.connection.execute(
-            "INSERT INTO runs(target_date,started_at,stats) VALUES(?,?,?)",
-            (stats.target_date, stats.started_at, json.dumps(stats.__dict__ if hasattr(stats, '__dict__') else {
-                name: getattr(stats, name) for name in stats.__dataclass_fields__
-            }, ensure_ascii=False)),
+            "INSERT OR REPLACE INTO runs(run_id,target_date,started_at,stats) VALUES(?,?,?,?)",
+            (stats.run_id, stats.target_date, stats.started_at,
+             json.dumps(stats.to_dict(), ensure_ascii=False)),
         )
+        if source_runs:
+            self.connection.executemany(
+                """INSERT OR REPLACE INTO source_runs(
+                run_id,target_date,source_name,source_type,collected_count,status,error_message,duration_seconds
+                ) VALUES(?,?,?,?,?,?,?,?)""",
+                [(item.run_id, item.target_date, item.source_name, item.source_type,
+                  item.collected_count, item.status, item.error_message, item.duration_seconds)
+                 for item in source_runs],
+            )
         self.connection.commit()
 
     def close(self) -> None:
         self.connection.close()
-

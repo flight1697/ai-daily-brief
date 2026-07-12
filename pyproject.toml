@@ -21,6 +21,7 @@ dev = ["pytest>=8,<9", "pytest-cov>=5,<6"]
 
 [project.scripts]
 ai-daily-brief = "ai_daily_brief.cli:main"
+ai-daily-metrics = "ai_daily_brief.metrics_report:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any
+from uuid import uuid4
 
 
 @dataclass(slots=True)
@@ -40,6 +41,8 @@ class Article:
 class RunStats:
     target_date: str
     started_at: str
+    run_id: str = field(default_factory=lambda: str(uuid4()))
+    finished_at: str = ""
     collected: int = 0
     in_window: int = 0
     deduplicated: int = 0
@@ -49,3 +52,20 @@ class RunStats:
     email_status: str = "not_requested"
     duration_seconds: float = 0.0
 
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(slots=True)
+class SourceRunStats:
+    run_id: str
+    target_date: str
+    source_name: str
+    source_type: str
+    collected_count: int = 0
+    status: str = "success"
+    error_message: str = ""
+    duration_seconds: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)

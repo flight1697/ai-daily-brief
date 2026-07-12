@@ -84,6 +84,8 @@ pytest -q
 | `EMAIL_FROM` | 发送时必需 | Resend 已验证的发件地址 |
 | `EMAIL_TO` | 发送时必需 | 收件邮箱 |
 | `GITHUB_TOKEN` | 建议 | 提高 GitHub API 限额 |
+| `SUPABASE_URL` | 否 | 第二阶段长期指标数据库地址 |
+| `SUPABASE_SERVICE_ROLE_KEY` | 否 | 服务端写入指标的Supabase密钥 |
 | `DATABASE_PATH` | 否 | 默认 `data/ai_daily.db` |
 
 信源在 `config/sources.yaml` 中维护。生产启用前应逐一确认第三方网站的 RSS 可用性与使用条款；单个源失效不会中止整次任务。
@@ -99,6 +101,16 @@ pytest -q
 两个调度共享并发锁。每个定时运行在发送前都会读取当日成功记录：主任务延迟时补偿任务会等待，补偿任务先完成时迟到的主任务也会跳过，从而兼顾补发与防重复。Resend请求还使用基于邮件内容的稳定幂等键，避免“服务端已接收、客户端响应超时”造成重复邮件。手动触发不受调度守卫限制，便于指定日期补发。GitHub 的 schedule 仍不是严格实时服务；若业务要求绝对准点，应迁移到云函数或服务器 cron。
 
 手动运行可勾选 `dry_run`，仅生成并上传日报产物而不发送邮件，适合部署验证。
+
+## 长期运行指标
+
+系统始终把运行和逐信源指标写入本地SQLite。执行以下命令可生成汇总：
+
+```powershell
+python -m ai_daily_brief.metrics_report --database data/ai_daily.db
+```
+
+如需跨GitHub Actions任务长期累计，在Supabase SQL Editor执行 `supabase/migrations/001_metrics.sql`，然后配置仓库Secrets `SUPABASE_URL`和`SUPABASE_SERVICE_ROLE_KEY`。远程指标写入失败只记录日志，不会阻断日报发送。
 
 GitHub Actions 的数据库文件只作为当次 artifact 保存 30 天，不是永久数据库。要统计长期指标，建议后续接入 PostgreSQL、对象存储或在每次运行结束时导出指标。
 

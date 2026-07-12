@@ -12,7 +12,8 @@ from .config import Settings, load_sources
 from .database import Database
 from .deepseek import enrich_articles
 from .delivery import render_digest, send_email
-from .models import Article, RunStats
+from .metrics_store import persist_remote_metrics
+from .models import Article, RunStats, SourceRunStats
 from .processors import classify, deduplicate, rank
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,7 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     stats = RunStats(target_date=target_date.isoformat(), started_at=datetime.now(timezone.utc).isoformat())
     window_start, window_end = _window(target_date, settings.timezone)
     articles: list[Article] = []
+    source_runs: list[SourceRunStats] = []
     deduplication_config: dict = {}
 
     if sample_path:
@@ -51,17 +53,45 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
         for source in config.get("rss", []):
             if not source.get("enabled", True):
                 continue
+            source_started = time.monotonic()
             try:
-                articles.extend(collect_rss(source))
+                collected = collect_rss(source)
+                articles.extend(collected)
+                source_runs.append(SourceRunStats(
+                    run_id=stats.run_id, target_date=stats.target_date,
+                    source_name=source["name"], source_type="rss",
+                    collected_count=len(collected),
+                    duration_seconds=round(time.monotonic() - source_started, 3),
+                ))
             except Exception as exc:  # One broken source must not abort the daily run.
                 stats.source_errors += 1
                 logger.warning("Source %s failed: %s", source.get("name"), exc)
+                source_runs.append(SourceRunStats(
+                    run_id=stats.run_id, target_date=stats.target_date,
+                    source_name=source.get("name", "unknown"), source_type="rss",
+                    status="error", error_message=str(exc)[:1000],
+                    duration_seconds=round(time.monotonic() - source_started, 3),
+                ))
+        github_started = time.monotonic()
         try:
-            articles.extend(collect_github(config.get("github", {}), settings.github_token,
-                                           window_start, window_end))
+            collected = collect_github(config.get("github", {}), settings.github_token,
+                                       window_start, window_end)
+            articles.extend(collected)
+            source_runs.append(SourceRunStats(
+                run_id=stats.run_id, target_date=stats.target_date,
+                source_name="GitHub", source_type="github",
+                collected_count=len(collected),
+                duration_seconds=round(time.monotonic() - github_started, 3),
+            ))
         except Exception as exc:
             stats.source_errors += 1
             logger.warning("GitHub collection failed: %s", exc)
+            source_runs.append(SourceRunStats(
+                run_id=stats.run_id, target_date=stats.target_date,
+                source_name="GitHub", source_type="github", status="error",
+                error_message=str(exc)[:1000],
+                duration_seconds=round(time.monotonic() - github_started, 3),
+            ))
 
     stats.collected = len(articles)
     articles = [item for item in articles if window_start <= item.published_at.astimezone(timezone.utc) < window_end]
@@ -115,12 +145,18 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
         except Exception:
             stats.email_status = "failed"
             stats.duration_seconds = round(time.monotonic() - started, 2)
-            database.save_run(stats)
+            stats.finished_at = datetime.now(timezone.utc).isoformat()
+            database.save_run(stats, source_runs)
             database.close()
+            persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
+                                   stats, source_runs)
             raise
     else:
         stats.email_status = "dry_run"
     stats.duration_seconds = round(time.monotonic() - started, 2)
-    database.save_run(stats)
+    stats.finished_at = datetime.now(timezone.utc).isoformat()
+    database.save_run(stats, source_runs)
     database.close()
+    persist_remote_metrics(settings.supabase_url, settings.supabase_service_role_key,
+                           stats, source_runs)
     return selected, stats, html
