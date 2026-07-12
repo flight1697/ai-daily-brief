@@ -117,6 +117,17 @@ python -m ai_daily_brief.metrics_report --database data/ai_daily.db
 
 GitHub Actions 的数据库文件只作为当次 artifact 保存 30 天，不是永久数据库。要统计长期指标，建议后续接入 PostgreSQL、对象存储或在每次运行结束时导出指标。
 
+## 自动健康检查与告警
+
+`.github/workflows/health.yml`每天北京时间10:00独立检查昨日运行，确认Supabase中存在成功发送记录且Resend Webhook最终状态为`delivered`。如果日报缺失、邮件未确认送达、退信或投诉，系统会向`EMAIL_TO`发送一封告警邮件，并把健康检查任务标记为失败，便于在GitHub Actions中追踪。
+
+告警使用“日期+健康检查”作为幂等键，同一天重复检查不会重复发送相同告警。信息源局部失败和最终新闻数为0会附在诊断信息中。也可以手动执行：
+
+```powershell
+python -m ai_daily_brief.health --date 2026-07-11
+python -m ai_daily_brief.health --date 2026-07-11 --alert
+```
+
 ## 质量边界
 
 - “官方来源”表示链接来自配置为官方的站点或官方 GitHub 仓库，不代表系统对全部主张做了独立审计。

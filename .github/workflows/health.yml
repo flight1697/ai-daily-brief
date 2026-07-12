@@ -1,0 +1,48 @@
+name: AI Daily Brief Health Check
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 10:00 Asia/Shanghai, after both delivery attempts.
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Optional target date (YYYY-MM-DD)"
+        required: false
+      send_alert:
+        description: "Send an alert email when unhealthy"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-daily-brief-health
+  cancel-in-progress: true
+
+jobs:
+  check-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install .
+      - name: Verify yesterday's delivery
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          DATE_ARG=""
+          ALERT_ARG="--alert"
+          if [ -n "${{ inputs.target_date }}" ]; then DATE_ARG="--date ${{ inputs.target_date }}"; fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.send_alert }}" != "true" ]; then ALERT_ARG=""; fi
+          python -m ai_daily_brief.health $DATE_ARG $ALERT_ARG
