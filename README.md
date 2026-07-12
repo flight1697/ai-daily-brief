@@ -2,6 +2,8 @@
 
 每天北京时间 09:00 汇总前一个自然日的 AI 行业动态，完成采集、清洗、事件去重、分类、重要性排序、基于来源的摘要，并通过 Resend 发送 HTML 邮件。
 
+[查看公开运行仪表盘](https://flight1697.github.io/ai-daily-brief/) · [查看自动化任务](https://github.com/flight1697/ai-daily-brief/actions)
+
 > 当前版本：`0.1.0`。项目代码可运行，但“稳定运行天数、发送成功率、节省时间”等数据必须在真实部署后由日志统计，不能把目标值当成既成结果写进简历。
 
 ## 工作流
@@ -142,6 +144,8 @@ python -m ai_daily_brief.weekly_report --end-date 2026-07-12 --send
 ## 公开运行仪表盘
 
 `.github/workflows/pages.yml`每天北京时间11:00从Supabase读取最近30天指标，生成纯静态GitHub Pages仪表盘。页面展示运行覆盖率、确认送达率、日均处理量、信源健康度和每日处理漏斗，不包含邮箱、邮件主题、消息ID、新闻正文、错误详情或任何密钥。
+
+在线地址：[https://flight1697.github.io/ai-daily-brief/](https://flight1697.github.io/ai-daily-brief/)
 
 本地生成命令：
 
