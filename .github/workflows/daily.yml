@@ -14,6 +14,11 @@ on:
         required: false
         type: boolean
         default: false
+      scheduled_run:
+        description: "Triggered by an external scheduler"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -42,6 +47,10 @@ jobs:
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_EVENT_NAME: ${{ github.event_name }}
           GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
+          INPUT_SCHEDULED_RUN: ${{ inputs.scheduled_run || 'false' }}
+          TARGET_DATE: ${{ inputs.target_date }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         shell: bash
         run: echo "should_send=$(python -m ai_daily_brief.schedule_guard)" >> "$GITHUB_OUTPUT"
       - name: Generate and send digest
