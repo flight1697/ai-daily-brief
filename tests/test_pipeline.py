@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from ai_daily_brief.config import Settings
-from ai_daily_brief.pipeline import run_pipeline
+from ai_daily_brief.pipeline import _category_limit, run_pipeline
 from ai_daily_brief.quality import DigestQualityError
 
 
@@ -31,6 +31,13 @@ def test_sample_pipeline_without_external_keys(tmp_path: Path) -> None:
     assert '"passed": true' in quality_output.read_text(encoding="utf-8")
     assert "AI行业日报" in html
     assert any(item.verification == "官方来源" for item in articles)
+
+
+def test_editorial_category_limits_prevent_filler() -> None:
+    assert _category_limit("研究与论文") == 1
+    assert _category_limit("开源项目") == 1
+    assert _category_limit("其他") == 0
+    assert _category_limit("模型与产品发布") == 3
 
 
 def test_low_quality_digest_is_persisted_but_not_sent(

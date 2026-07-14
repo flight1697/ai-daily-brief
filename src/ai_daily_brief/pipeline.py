@@ -20,6 +20,22 @@ from .quality import DigestQualityError, assess_quality
 
 logger = logging.getLogger(__name__)
 
+CATEGORY_LIMITS = {
+    "AI开发工具与Agent": 2,
+    "模型与产品发布": 3,
+    "企业与商业动态": 3,
+    "投融资与并购": 2,
+    "政策与监管": 2,
+    "AI应用案例": 2,
+    "开源项目": 1,
+    "研究与论文": 1,
+    "其他": 0,
+}
+
+
+def _category_limit(category: str) -> int:
+    return CATEGORY_LIMITS.get(category, 2)
+
 
 def _persist_run(database: Database, stats: RunStats, source_runs: list[SourceRunStats],
                  quality: dict, settings: Settings) -> None:
@@ -140,6 +156,8 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     for article in articles:
         if editorial_priority(article) < 2:
             continue
+        if category_counts.get(article.category, 0) >= _category_limit(article.category):
+            continue
         entity = editorial_entity(article)
         if entity and entity_counts.get(entity, 0) >= 2:
             continue
@@ -153,6 +171,8 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
         if article in selected:
             continue
         if article.score < 52:
+            continue
+        if _category_limit(article.category) == 0:
             continue
         entity = editorial_entity(article)
         if entity and entity_counts.get(entity, 0) >= 2:
@@ -173,10 +193,7 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
         entity = editorial_entity(article)
         if entity and entity_counts.get(entity, 0) >= 2:
             continue
-        if category_counts.get(article.category, 0) >= 5:
-            continue
-        if article.category == "开源项目" and editorial_priority(article) == 0 \
-                and category_counts.get(article.category, 0) >= 1:
+        if category_counts.get(article.category, 0) >= _category_limit(article.category):
             continue
         selected.append(article)
         category_counts[article.category] = category_counts.get(article.category, 0) + 1
