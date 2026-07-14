@@ -20,5 +20,7 @@ def render_digest(articles: list[Article], target_date: date, stats: RunStats,
     grouped: dict[str, list[Article]] = {}
     for article in rest:
         grouped.setdefault(article.category, []).append(article)
-    return template.render(target_date=target_date, top=top, grouped=grouped, stats=stats)
-
+    return template.render(
+        target_date=target_date, top=top, grouped=grouped, stats=stats,
+        reading_minutes=max(3, round(len(articles) * 0.7)),
+    )

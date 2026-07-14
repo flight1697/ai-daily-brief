@@ -8,11 +8,23 @@ rss:
     official: true
     weight: 95
   - name: Anthropic News
-    url: https://www.anthropic.com/news/rss.xml
+    url: https://www.anthropic.com/sitemap.xml
+    format: sitemap
+    include_path: /news/
+    recent_days: 7
     language: en
     official: true
     weight: 95
-    enabled: false # Endpoint currently returns HTML; re-enable after adding a webpage adapter.
+  - name: AI Leaders Monitor
+    url: https://news.google.com/rss/search?q=%28OpenAI%20OR%20Anthropic%20OR%20DeepMind%20OR%20Gemini%20OR%20Grok%20OR%20Llama%20OR%20DeepSeek%29%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen
+    language: en
+    official: false
+    weight: 87
+  - name: AI Coding Monitor
+    url: https://news.google.com/rss/search?q=%28%22OpenAI%20Codex%22%20OR%20%22Claude%20Code%22%20OR%20%22AI%20coding%20agent%22%29%20when%3A1d&hl=en-US&gl=US&ceid=US%3Aen
+    language: en
+    official: false
+    weight: 88
   - name: Google AI
     url: https://blog.google/technology/ai/rss/
     language: en
@@ -99,6 +111,8 @@ rss:
 github:
   search_query: "topic:artificial-intelligence stars:>500"
   watch_releases:
+    - openai/codex
+    - anthropics/claude-code
     - huggingface/transformers
     - ollama/ollama
     - vllm-project/vllm

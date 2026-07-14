@@ -1,5 +1,4 @@
 from .deduplicator import deduplicate
-from .rules import classify, rank
+from .rules import classify, editorial_entity, editorial_priority, rank
 
-__all__ = ["deduplicate", "classify", "rank"]
-
+__all__ = ["deduplicate", "classify", "editorial_entity", "editorial_priority", "rank"]

@@ -1,55 +1,53 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI行业日报</title>
-</head>
-<body style="margin:0;background:#f4f6f8;color:#17202a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;">
-  <div style="max-width:720px;margin:0 auto;padding:28px 16px;">
-    <header style="background:#101828;color:#fff;border-radius:16px;padding:28px;">
-      <div style="font-size:13px;color:#98a2b3;letter-spacing:1px;">AI DAILY BRIEF</div>
-      <h1 style="margin:8px 0 4px;font-size:28px;">AI行业日报</h1>
-      <div style="color:#d0d5dd;">{{ target_date }} · 前一自然日重要动态</div>
-    </header>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI行业日报</title></head>
+<body style="margin:0;background:#edf3f0;color:#18302c;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;">
+  <div style="display:none;max-height:0;overflow:hidden;">头部公司、新模型与 AI 开发工具的重要变化，{{ reading_minutes }} 分钟读完。</div>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#edf3f0;"><tr><td align="center">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:720px;margin:0 auto;">
+      <tr><td style="padding:24px 16px 0;">
+        <div style="background:#17463f;background-image:linear-gradient(135deg,#17463f 0%,#275e69 100%);border-radius:22px;padding:30px 28px;color:#f5fbf8;box-shadow:0 14px 34px rgba(24,58,52,.16);">
+          <div style="font-size:11px;letter-spacing:2.4px;color:#b9d8ce;font-weight:700;">AI DAILY BRIEF · {{ target_date }}</div>
+          <h1 style="margin:18px 0 8px;font-size:29px;line-height:1.25;letter-spacing:-.5px;">今天真正值得看的<br>AI 行业变化</h1>
+          <p style="margin:0;color:#d7e9e3;font-size:14px;line-height:1.7;">聚焦头部公司、新模型、AI 开发工具与商业拐点</p>
+          <div style="margin-top:20px;font-size:12px;color:#b9d8ce;">约 {{ reading_minutes }} 分钟 · 最终精选 {{ stats.selected }} 条</div>
+        </div>
+      </td></tr>
 
-    {% if not top %}
-    <section style="background:#fff;margin-top:16px;padding:24px;border-radius:14px;">
-      <p style="margin:0;">当日没有符合时间窗口和筛选条件的内容。</p>
-    </section>
-    {% endif %}
+      {% if not top %}<tr><td style="padding:16px;"><div style="background:#fff;border-radius:16px;padding:24px;">当日没有达到编辑标准的重要动态。</div></td></tr>{% endif %}
 
-    {% if top %}
-    <h2 style="font-size:18px;margin:26px 4px 12px;">今日重点</h2>
-    {% for article in top %}
-    <article style="background:#fff;margin-bottom:12px;padding:22px;border-radius:14px;border-left:4px solid #7f56d9;">
-      <div style="font-size:12px;color:#6941c6;">{{ article.category }} · {{ article.score }}分 · {{ article.verification }}</div>
-      <h3 style="font-size:18px;line-height:1.5;margin:8px 0;"><a href="{{ article.url }}" style="color:#17202a;text-decoration:none;">{{ article.title }}</a></h3>
-      <p style="line-height:1.75;margin:8px 0;"><strong>发生了什么：</strong>{{ article.summary }}</p>
-      <p style="line-height:1.75;margin:8px 0;color:#475467;"><strong>为什么重要：</strong>{{ article.why_it_matters }}</p>
-      <div style="font-size:12px;color:#667085;margin-top:12px;">来源：<a href="{{ article.url }}">{{ article.source }}</a>{% for source in article.related_sources %} · <a href="{{ source.url }}">{{ source.name }}</a>{% endfor %}</div>
-    </article>
-    {% endfor %}
-    {% endif %}
+      {% if top %}
+      <tr><td style="padding:28px 20px 10px;"><div style="font-size:12px;color:#598078;letter-spacing:1.8px;font-weight:700;">THE SIGNALS</div><h2 style="font-size:20px;margin:6px 0 0;color:#18302c;">今日核心信号</h2></td></tr>
+      {% for article in top %}
+      <tr><td style="padding:0 16px 12px;">
+        <div style="background:rgba(255,255,255,.94);border:1px solid #dce9e4;border-radius:18px;padding:22px 22px 20px;box-shadow:0 6px 18px rgba(31,65,57,.06);">
+          <table role="presentation" width="100%"><tr><td valign="top" style="width:42px;"><div style="width:32px;height:32px;line-height:32px;text-align:center;border-radius:50%;background:#dceee8;color:#1b5b4e;font-weight:800;font-size:13px;">0{{ loop.index }}</div></td><td>
+            <div style="font-size:11px;color:#397062;font-weight:700;letter-spacing:.4px;">{{ article.category }} · {{ article.verification }}</div>
+            <h3 style="font-size:19px;line-height:1.48;margin:8px 0 12px;letter-spacing:-.2px;"><a href="{{ article.url }}" style="color:#18302c;text-decoration:none;">{{ article.title }}</a></h3>
+          </td></tr></table>
+          <div style="border-left:3px solid #76aa99;padding-left:13px;margin:4px 0 12px;color:#2b4741;font-size:14px;line-height:1.75;">{{ article.summary }}</div>
+          <div style="background:#f1f7f4;border-radius:11px;padding:12px 14px;color:#49645e;font-size:13px;line-height:1.65;"><strong style="color:#28594f;">为什么重要</strong><br>{{ article.why_it_matters }}</div>
+          <div style="font-size:11px;color:#789089;margin-top:13px;">来源：<a href="{{ article.url }}" style="color:#397062;">{{ article.source }}</a>{% for source in article.related_sources %} · <a href="{{ source.url }}" style="color:#397062;">{{ source.name }}</a>{% endfor %}</div>
+        </div>
+      </td></tr>
+      {% endfor %}{% endif %}
 
-    {% for category, articles in grouped.items() %}
-    <h2 style="font-size:18px;margin:26px 4px 12px;">{{ category }}</h2>
-    {% for article in articles %}
-    <article style="background:#fff;margin-bottom:10px;padding:20px;border-radius:14px;">
-      <div style="font-size:12px;color:#667085;">{{ article.score }}分 · {{ article.verification }}</div>
-      <h3 style="font-size:17px;line-height:1.5;margin:7px 0;"><a href="{{ article.url }}" style="color:#17202a;text-decoration:none;">{{ article.title }}</a></h3>
-      <p style="line-height:1.7;margin:6px 0;">{{ article.summary }}</p>
-      <p style="line-height:1.7;margin:6px 0;color:#475467;"><strong>影响：</strong>{{ article.why_it_matters }}</p>
-      <div style="font-size:12px;color:#667085;margin-top:10px;">来源：<a href="{{ article.url }}">{{ article.source }}</a>{% for source in article.related_sources %} · <a href="{{ source.url }}">{{ source.name }}</a>{% endfor %}</div>
-    </article>
-    {% endfor %}
-    {% endfor %}
+      {% for category, articles in grouped.items() %}
+      <tr><td style="padding:24px 20px 9px;"><h2 style="font-size:17px;margin:0;color:#28443e;"><span style="color:#6f9c8f;">—</span>&nbsp; {{ category }}</h2></td></tr>
+      {% for article in articles %}
+      <tr><td style="padding:0 16px 10px;">
+        <div style="background:#fbfdfc;border:1px solid #dfeae6;border-radius:15px;padding:18px 19px;">
+          <div style="font-size:11px;color:#789089;">{{ article.verification }} · {{ article.source }}</div>
+          <h3 style="font-size:16px;line-height:1.55;margin:6px 0 8px;"><a href="{{ article.url }}" style="color:#1c3832;text-decoration:none;">{{ article.title }}</a></h3>
+          <p style="font-size:13px;line-height:1.72;margin:0;color:#49645e;">{{ article.summary }}</p>
+          <p style="font-size:12px;line-height:1.65;margin:8px 0 0;color:#658078;"><strong style="color:#3c655b;">影响：</strong>{{ article.why_it_matters }}　<a href="{{ article.url }}" style="color:#397062;text-decoration:none;">查看原文 →</a></p>
+        </div>
+      </td></tr>
+      {% endfor %}{% endfor %}
 
-    <footer style="padding:22px 8px;color:#667085;font-size:12px;line-height:1.7;">
-      本期采集 {{ stats.collected }} 条，时间窗口内 {{ stats.in_window }} 条，聚类后 {{ stats.deduplicated }} 个事件，最终收录 {{ stats.selected }} 条。<br>
-      摘要由自动化系统基于所列来源生成；重要信息请以原文为准。
-    </footer>
-  </div>
-</body>
-</html>
-
+      <tr><td style="padding:26px 22px 32px;color:#789089;font-size:11px;line-height:1.75;text-align:center;">
+        从 {{ stats.collected }} 条信息中筛出 {{ stats.in_window }} 条当日动态，聚类为 {{ stats.deduplicated }} 个事件，最终收录 {{ stats.selected }} 条。<br>摘要基于所列来源生成，关键决策请查看原文。
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>

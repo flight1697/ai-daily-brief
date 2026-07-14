@@ -80,8 +80,10 @@ def test_native_schedule_uses_github_fallback_when_remote_lookup_fails(monkeypat
     monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "secret")
     monkeypatch.setattr(schedule_guard, "supabase_has_sent", lambda *_: (_ for _ in ()).throw(httpx.ConnectError("down")))
+    today = datetime.now(timezone.utc).replace(hour=0, minute=47, second=0, microsecond=0)
     monkeypatch.setattr(schedule_guard, "github_runs", lambda *_: [{
-        "id": 1, "event": "schedule", "conclusion": "success", "created_at": "2026-07-13T00:47:00Z",
+        "id": 1, "event": "schedule", "conclusion": "success",
+        "created_at": today.isoformat().replace("+00:00", "Z"),
     }])
     schedule_guard.main()
     assert capsys.readouterr().out.strip() == "false"

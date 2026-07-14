@@ -12,16 +12,17 @@ from .models import Article
 logger = logging.getLogger(__name__)
 
 ALLOWED_CATEGORIES = {
-    "模型与产品发布", "企业与商业动态", "投融资与并购", "开源项目",
+    "AI开发工具与Agent", "模型与产品发布", "企业与商业动态", "投融资与并购", "开源项目",
     "研究与论文", "政策与监管", "AI应用案例", "其他",
 }
 
 SYSTEM_PROMPT = """你是严谨的AI行业新闻编辑。只能依据用户提供的材料工作，不能补充模型记忆中的事实。
 输出必须是JSON对象，不要使用Markdown。对象只有items字段，items是数组；每个元素包含id、category、summary、why_it_matters、tags。
-summary用60-100个中文字符陈述事实；why_it_matters用30-60个中文字符说明影响。
+summary用60-100个中文字符陈述事实；why_it_matters用30-60个中文字符具体说明它对竞争格局、产品用户或商业决策的影响。
 保留公司名、模型名、金额、日期等关键事实；不使用“震撼、重磅、赋能”等营销词。
 材料不足时明确写“来源未披露更多细节”，不得编造数字或结论。
-category只能是：模型与产品发布、企业与商业动态、投融资与并购、开源项目、研究与论文、政策与监管、AI应用案例、其他。"""
+禁止使用“值得关注、建议持续关注、进入候选列表”之类空话；材料不足就说明缺少什么。
+category只能是：AI开发工具与Agent、模型与产品发布、企业与商业动态、投融资与并购、开源项目、研究与论文、政策与监管、AI应用案例、其他。"""
 
 
 def _fallback(article: Article) -> None:

@@ -15,7 +15,7 @@ from .deepseek import enrich_articles
 from .delivery import render_digest, send_email
 from .metrics_store import persist_remote_metrics
 from .models import Article, RunStats, SourceRunStats
-from .processors import classify, deduplicate, rank
+from .processors import classify, deduplicate, editorial_entity, editorial_priority, rank
 from .quality import DigestQualityError, assess_quality
 
 logger = logging.getLogger(__name__)
@@ -132,23 +132,56 @@ def run_pipeline(settings: Settings, target_date: date, source_path: str = "conf
     for article in articles:
         rank(classify(article))
     articles.sort(key=lambda item: (item.score, item.source_weight), reverse=True)
-    # Reserve the first three positions for distinct categories when possible.
+    # Lead with strategic companies, model launches and AI coding tools. Category
+    # diversity is applied afterwards so a routine project cannot displace them.
     selected: list[Article] = []
     category_counts: dict[str, int] = {}
+    entity_counts: dict[str, int] = {}
     for article in articles:
+        if editorial_priority(article) < 2:
+            continue
+        entity = editorial_entity(article)
+        if entity and entity_counts.get(entity, 0) >= 2:
+            continue
+        selected.append(article)
+        category_counts[article.category] = category_counts.get(article.category, 0) + 1
+        if entity:
+            entity_counts[entity] = entity_counts.get(entity, 0) + 1
+        if len(selected) >= min(6, max_items):
+            break
+    for article in articles:
+        if article in selected:
+            continue
+        if article.score < 52:
+            continue
+        entity = editorial_entity(article)
+        if entity and entity_counts.get(entity, 0) >= 2:
+            continue
         if article.category in category_counts:
             continue
         selected.append(article)
         category_counts[article.category] = 1
+        if entity:
+            entity_counts[entity] = entity_counts.get(entity, 0) + 1
         if len(selected) >= min(3, max_items):
             break
     for article in articles:
         if article in selected:
             continue
-        if category_counts.get(article.category, 0) >= 6:
+        if article.score < 52:
+            continue
+        entity = editorial_entity(article)
+        if entity and entity_counts.get(entity, 0) >= 2:
+            continue
+        if category_counts.get(article.category, 0) >= 5:
+            continue
+        if article.category == "开源项目" and editorial_priority(article) == 0 \
+                and category_counts.get(article.category, 0) >= 1:
             continue
         selected.append(article)
         category_counts[article.category] = category_counts.get(article.category, 0) + 1
+        if entity:
+            entity_counts[entity] = entity_counts.get(entity, 0) + 1
         if len(selected) >= max_items:
             break
     stats.selected = len(selected)
