@@ -1,12 +1,12 @@
 # AI Daily Brief
 
-每天北京时间 09:00 汇总前一个自然日的 AI 行业动态，完成采集、清洗、事件去重、分类、重要性排序、基于来源的摘要，并通过 Resend 发送 HTML 邮件。
+面向个人订阅场景的 AI 行业日报系统。每天北京时间 09:00 汇总前一个自然日的行业动态，完成多源采集、事件去重、分类排序、基于来源的摘要和邮件投递。
 
 [查看公开运行仪表盘](https://flight1697.github.io/ai-daily-brief/) · [查看自动化任务](https://github.com/flight1697/ai-daily-brief/actions)
 
 [![CI](https://github.com/flight1697/ai-daily-brief/actions/workflows/ci.yml/badge.svg)](https://github.com/flight1697/ai-daily-brief/actions/workflows/ci.yml)
 
-> 当前版本：`0.1.0`。项目代码可运行，但“稳定运行天数、发送成功率、节省时间”等数据必须在真实部署后由日志统计，不能把目标值当成既成结果写进简历。
+当前版本：`0.1.0`。系统已包含定时调度、补偿执行、质量门禁、投递追踪、健康检查和运行指标看板。
 
 ## 工作流
 
@@ -30,7 +30,7 @@ Jinja2 HTML → Resend → 运行数据写入SQLite
 
 ## 功能
 
-- 18 个预配 RSS/arXiv 信源（当前 15 个默认启用）及 6 个 GitHub Release 监控仓库
+- 20 个预配 RSS/官网/arXiv 信源（当前 18 个启用）及 8 个 GitHub Release 监控仓库
 - 严格按 `Asia/Shanghai` 的前一自然日筛选
 - URL、标题、正文相似度三层事件去重
 - 版本号冲突保护和同源严格阈值，避免把不同软件版本误合并为同一事件
@@ -172,21 +172,25 @@ python -m ai_daily_brief.dashboard --days 30 --output public/index.html
 - GitHub 搜索结果代表目标日有更新且符合主题/Star条件的仓库，不等同于官方 Trending 榜单。
 - RSS 页面结构与地址会变化，真实部署后应监控 `source_errors` 并定期维护。
 
-## 简历量化
-
-SQLite 的 `runs` 表记录采集量、时间窗口数量、聚类后数量、最终条数、信源错误、LLM使用状态、发送状态和运行耗时。连续运行后，只使用真实统计值替换简历中的占位符：
-
-> 接入 `[N]` 个 RSS/API 信源，日均处理 `[A]` 条信息，经事件聚类输出 `[B]` 条核心动态；连续运行 `[D]` 天，邮件发送成功率 `[R]%`，每日人工审核由 `[X]` 分钟降至 `[Y]` 分钟。
-
 ## 项目结构
 
 ```text
-src/ai_daily_brief/
-├── collectors/       # RSS、GitHub
-├── processors/       # 清洗、去重、分类、评分
-├── delivery/         # HTML与Resend
-├── deepseek.py       # 结构化摘要
-├── pipeline.py       # 主处理链路
-├── database.py       # SQLite留痕
-└── cli.py            # 命令行入口
+ai-daily-brief/
+├── .github/workflows/       # CI、日报调度、健康检查、周报和 Pages
+├── config/sources.yaml      # RSS、官网、arXiv 与 GitHub 信源配置
+├── src/ai_daily_brief/
+│   ├── collectors/          # RSS、Sitemap 与 GitHub 采集
+│   ├── processors/          # 清洗、去重、分类与重要性评分
+│   ├── delivery/            # HTML 渲染与 Resend 投递
+│   ├── pipeline.py          # 日报主处理链路
+│   ├── deepseek.py          # 基于来源的结构化摘要
+│   ├── quality.py           # 发送前内容质量门禁
+│   ├── schedule_guard.py    # 调度查重与发送幂等控制
+│   ├── metrics_store.py     # SQLite / Supabase 运行指标
+│   ├── health.py            # 投递与内容质量健康检查
+│   ├── weekly_report.py     # 每周运行报告
+│   └── dashboard.py         # 匿名公开运行仪表盘
+├── supabase/                # 数据库迁移与 Resend Webhook
+├── templates/               # 日报邮件模板
+└── tests/                   # 自动化测试
 ```
