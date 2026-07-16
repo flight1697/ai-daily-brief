@@ -80,9 +80,9 @@ def evaluate_health(target_date: date, runs: list[dict[str, Any]],
     recent_quality = [daily_quality[key] for key in sorted(daily_quality, reverse=True)[:3]]
     if len(recent_quality) == 3:
         if all(float(row.get("multi_source_ratio") or 0) < 0.2 for row in recent_quality):
-            status.issues.append("连续3天交叉核验比例低于20%")
+            status.warnings.append("连续3天交叉核验比例低于20%")
         if all(float(row.get("official_ratio") or 0) == 0 for row in recent_quality):
-            status.issues.append("连续3天没有官方来源入选")
+            status.warnings.append("连续3天没有官方来源入选")
 
     status.healthy = not status.issues
     return status

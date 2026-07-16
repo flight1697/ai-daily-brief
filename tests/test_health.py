@@ -42,7 +42,7 @@ def test_alert_html_escapes_external_text() -> None:
     assert "bad <script>" not in rendered
 
 
-def test_three_day_low_quality_trend_triggers_alert() -> None:
+def test_three_day_low_quality_trend_is_warning_only() -> None:
     quality_rows = [
         {
             "target_date": f"2026-07-{day:02d}", "passed": True,
@@ -55,9 +55,10 @@ def test_three_day_low_quality_trend_triggers_alert() -> None:
         [{"email_status": "sent:message", "selected": 10, "source_errors": 0}],
         [{"status": "delivered"}], quality_rows,
     )
-    assert status.healthy is False
-    assert "连续3天交叉核验比例低于20%" in status.issues
-    assert "连续3天没有官方来源入选" in status.issues
+    assert status.healthy is True
+    assert status.issues == []
+    assert "连续3天交叉核验比例低于20%" in status.warnings
+    assert "连续3天没有官方来源入选" in status.warnings
 
 
 def test_health_check_fetches_delivery_and_quality(monkeypatch: pytest.MonkeyPatch) -> None:
